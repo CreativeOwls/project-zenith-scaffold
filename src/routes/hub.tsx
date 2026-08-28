@@ -35,7 +35,37 @@ export const Route = createFileRoute("/hub")({
   component: HubPage,
 });
 
-type Turn = ChatTurn & { trace?: { agentName: string; depth: number; reply: string }[] };
+type TraceEntry = { agentName: string; model?: string; depth: number; reply: string };
+type Turn = ChatTurn & { trace?: TraceEntry[] };
+
+function AgentBadge({ entry }: { entry: TraceEntry }) {
+  const avatar = avatarFor(entry.agentName);
+  return (
+    <div className="flex items-start gap-3 rounded-lg border border-border bg-card/60 p-3">
+      {avatar ? (
+        <img
+          src={avatar}
+          alt={`${entry.agentName} avatar`}
+          className="h-9 w-9 shrink-0 rounded-full border border-border object-cover"
+        />
+      ) : (
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-secondary text-xs font-semibold">
+          {initialsFor(entry.agentName)}
+        </span>
+      )}
+      <div className="min-w-0">
+        <p className="text-xs font-semibold">
+          {entry.agentName}
+          {entry.model ? (
+            <span className="ml-2 font-normal text-muted-foreground">{entry.model}</span>
+          ) : null}
+          <span className="ml-2 font-normal text-muted-foreground">· step {entry.depth}</span>
+        </p>
+        <p className="mt-1 line-clamp-3 text-xs text-muted-foreground">{stripMarkdown(entry.reply)}</p>
+      </div>
+    </div>
+  );
+}
 
 function HubPage() {
   const chat = useServerFn(sendChat);
