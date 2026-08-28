@@ -261,7 +261,7 @@ export async function buildFlowFromPrompt(params: {
   const provider = createLovableAiGatewayProvider(getLovableApiKey());
 
   const spec = `
-Node kinds and subtypes:
+Node kinds and subtypes ("kind" and "subtype" are SEPARATE fields — subtype must be the bare value, e.g. {"kind":"action","subtype":"tool"}, never "action/tool"):
 ${Object.entries(NODE_SUBTYPES)
   .map(([kind, subtypes]) => `- ${kind}: ${subtypes.map((s) => s.value).join(", ")}`)
   .join("\n")}
