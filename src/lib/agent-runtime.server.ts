@@ -378,6 +378,8 @@ export async function runOrchestrator(params: {
     messages: modelMessages,
     tools: {
       ...toolsForIds(allToolIds),
+      ...workspaceTools(),
+
       ...(agents.length > 0
         ? delegationTool({ supabase, userId, agents, depth: 1, maxDepth, trace })
         : {}),
