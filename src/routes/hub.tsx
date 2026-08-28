@@ -4,8 +4,10 @@ import { useEffect, useRef, useState } from "react";
 
 import orchestratorAvatar from "@/assets/agent-orchestrator.jpg";
 import { AppShell } from "@/components/AppShell";
+import { Markdown } from "@/components/Markdown";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { avatarFor, initialsFor } from "@/lib/agent-avatars";
 import { sendChat, type ChatTurn } from "@/lib/chat.functions";
 import { TOOL_CATALOG } from "@/lib/connector-catalog";
 
@@ -34,6 +36,24 @@ export const Route = createFileRoute("/hub")({
   }),
   component: HubPage,
 });
+
+/** Flatten markdown to plain text for compact one-line previews. */
+function stripMarkdown(text: string) {
+  return text
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/`([^`]*)`/g, "$1")
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/^\s{0,3}#{1,6}\s*/gm, "")
+    .replace(/^\s{0,3}>\s?/gm, "")
+    .replace(/^\s*[-*+]\s+/gm, "")
+    .replace(/^\s*\d+\.\s+/gm, "")
+    .replace(/(\*\*|__)(.*?)\1/g, "$2")
+    .replace(/(\*|_)(.*?)\1/g, "$2")
+    .replace(/^\s*([-*_]\s*){3,}$/gm, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
 type TraceEntry = { agentName: string; model?: string; depth: number; reply: string };
 type Turn = ChatTurn & { trace?: TraceEntry[] };
@@ -142,24 +162,26 @@ function HubPage() {
           )}
           {messages.map((message, index) => (
             <div key={index} className="space-y-2">
-              <div
-                className={
-                  message.role === "user"
-                    ? "ml-auto max-w-[85%] rounded-lg bg-secondary px-3 py-2 text-sm"
-                    : "max-w-[90%] rounded-lg bg-card px-3 py-2 text-sm whitespace-pre-wrap"
-                }
-              >
-                {message.content}
-              </div>
+              {message.role === "user" ? (
+                <div className="ml-auto max-w-[85%] rounded-lg bg-secondary px-3 py-2 text-sm whitespace-pre-wrap">
+                  {message.content}
+                </div>
+              ) : (
+                <div className="max-w-[90%] rounded-lg bg-card px-4 py-3">
+                  <Markdown>{message.content}</Markdown>
+                </div>
+              )}
               {message.trace && message.trace.length > 0 && (
-                <ul className="space-y-1 text-xs text-muted-foreground">
-                  {message.trace.map((entry, i) => (
-                    <li key={i}>
-                      ↳ delegated to <span className="text-accent-blue">{entry.agentName}</span> (depth{" "}
-                      {entry.depth}): {entry.reply.slice(0, 160)}
-                    </li>
-                  ))}
-                </ul>
+                <div className="max-w-[90%] space-y-2">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Agents used
+                  </p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {message.trace.map((entry, i) => (
+                      <AgentBadge key={i} entry={entry} />
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
           ))}
