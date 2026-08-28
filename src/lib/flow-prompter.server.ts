@@ -213,5 +213,46 @@ Return ONLY JSON:
 
   const normalized = normalizeGraph(extractJson(result.text ?? ""));
   const validation = validateGraph(normalized.graph);
+  reconcileAgentNodes(normalized.graph, params.agents, validation);
   return { ...normalized, validation };
+}
+
+/**
+ * The model occasionally writes an agent name (or a stale id) into agentId.
+ * Repair it by name when we can, otherwise surface it instead of silently
+ * shipping a node that cannot run.
+ */
+function reconcileAgentNodes(
+  graph: FlowGraph,
+  agents: PrompterAgent[],
+  validation: ValidationResult,
+) {
+  const byId = new Map(agents.map((a) => [a.id, a]));
+  const byName = new Map(agents.map((a) => [a.name.trim().toLowerCase(), a]));
+
+  for (const node of graph.nodes) {
+    if (node.kind !== "action" || node.subtype !== "agent") continue;
+    const config = (node.config ?? {}) as Record<string, unknown>;
+    const raw = String(config["agentId"] ?? "").trim();
+    let agent = byId.get(raw);
+
+    if (!agent) {
+      const guess =
+        byName.get(raw.toLowerCase()) ??
+        agents.find((a) => node.label.toLowerCase().includes(a.name.toLowerCase()));
+      if (guess) {
+        agent = guess;
+        node.config = { ...config, agentId: guess.id };
+      } else {
+        validation.errors.push(
+          `Node ${node.id} points at an unknown agent${raw ? ` ("${raw}")` : ""} — pick one in the inspector.`,
+        );
+        continue;
+      }
+    }
+
+    if (!node.label.toLowerCase().includes(agent.name.toLowerCase())) {
+      node.label = `${agent.name} — ${node.label}`;
+    }
+  }
 }
