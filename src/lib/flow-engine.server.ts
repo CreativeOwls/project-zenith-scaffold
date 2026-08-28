@@ -45,22 +45,13 @@ export class FlowExecutor {
     return this.graph.nodes.find((n) => n.id === id);
   }
 
-  /** True when this node's output is (directly, or via other agent steps) delivered to an email output. */
-  private feedsDelivery(nodeId: string, seen = new Set<string>()): boolean {
-    if (seen.has(nodeId)) return false;
-    seen.add(nodeId);
+  /** True when this node's output goes straight into a delivery/output node. */
+  private feedsDelivery(nodeId: string): boolean {
     return this.graph.connections
       .filter((c) => c.from === nodeId)
-      .some((c) => {
-        const next = this.node(c.to);
-        if (!next) return false;
-        if (next.kind === "output") return next.subtype === "email" || next.subtype === "text";
-        if (next.kind === "action" && (next.subtype === "agent" || next.subtype === "prompt")) {
-          return this.feedsDelivery(next.id, seen);
-        }
-        return false;
-      });
+      .some((c) => this.node(c.to)?.kind === "output");
   }
+
 
 
   private async persist(status?: string, result?: unknown) {
