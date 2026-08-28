@@ -123,9 +123,35 @@ function normalizeGraph(raw: unknown): { graph: FlowGraph; name: string; descrip
   };
 }
 
+export type PrompterAgent = {
+  id: string;
+  name: string;
+  description: string | null;
+  tools: string[];
+  model: string;
+  system_prompt?: string | null;
+};
+
+function agentRoster(agents: PrompterAgent[]) {
+  if (agents.length === 0) return "(none — do not create action/agent nodes, use action/prompt instead)";
+  return agents
+    .map((a) => {
+      const persona = (a.system_prompt ?? "").replace(/\s+/g, " ").trim().slice(0, 400);
+      return [
+        `- id: ${a.id}`,
+        `  name: ${a.name}`,
+        `  model: ${a.model}`,
+        `  specialty: ${a.description ?? "unspecified"}`,
+        `  tools: ${a.tools.join(", ") || "none"}`,
+        `  persona: ${persona || "unspecified"}`,
+      ].join("\n");
+    })
+    .join("\n");
+}
+
 export async function buildFlowFromPrompt(params: {
   request: string;
-  agents: { id: string; name: string; description: string | null; tools: string[] }[];
+  agents: PrompterAgent[];
 }) {
   const provider = createLovableAiGatewayProvider(getLovableApiKey());
 
