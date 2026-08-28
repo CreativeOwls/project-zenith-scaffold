@@ -241,7 +241,7 @@ export function NodeCanvas({
                     connect(node.id);
                   }}
                   className={cn(
-                    "absolute -top-2 left-1/2 size-3.5 -translate-x-1/2 rounded-full border border-foreground/50 bg-background",
+                    "absolute -left-2 top-1/2 size-3.5 -translate-y-1/2 rounded-full border border-foreground/50 bg-background",
                     pending && "border-accent-blue bg-accent-blue/40",
                   )}
                 />
