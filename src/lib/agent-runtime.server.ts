@@ -24,6 +24,7 @@ export type ChatMessage = { role: "user" | "assistant"; content: string };
 export type DelegationTrace = {
   agentId: string;
   agentName: string;
+  model?: string;
   depth: number;
   request: string;
   reply: string;
