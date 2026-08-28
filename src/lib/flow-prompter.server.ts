@@ -2,6 +2,7 @@ import { generateText } from "ai";
 
 import { DEFAULT_MODEL, createLovableAiGatewayProvider, getLovableApiKey } from "./ai-gateway.server";
 import { TOOL_CATALOG } from "./connector-catalog";
+import { autoLayout } from "./flow-layout";
 import { NODE_SUBTYPES, type FlowConnection, type FlowGraph, type FlowNode } from "./flow-types";
 
 export type ValidationResult = { errors: string[]; warnings: string[] };
