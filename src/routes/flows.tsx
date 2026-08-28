@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { FlowPrompter } from "@/components/flow/FlowPrompter";
 import { NodeCanvas } from "@/components/flow/NodeCanvas";
-import { NodeInspector } from "@/components/flow/NodeInspector";
+import { NodeInspector, type AgentOption } from "@/components/flow/NodeInspector";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { listAgents } from "@/lib/agents.functions";
@@ -58,7 +58,7 @@ function FlowsPage() {
   const loadAgents = useServerFn(listAgents);
 
   const [flows, setFlows] = useState<FlowRow[]>([]);
-  const [agents, setAgents] = useState<{ id: string; name: string }[]>([]);
+  const [agents, setAgents] = useState<AgentOption[]>([]);
   const [flowId, setFlowId] = useState<string | null>(null);
   const [name, setName] = useState("Untitled flow");
   const [description, setDescription] = useState("");
@@ -82,7 +82,7 @@ function FlowsPage() {
   useEffect(() => {
     void refresh();
     void loadAgents()
-      .then((rows) => setAgents(rows as unknown as { id: string; name: string }[]))
+      .then((rows) => setAgents(rows as unknown as AgentOption[]))
       .catch(() => undefined);
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
@@ -291,6 +291,7 @@ function FlowsPage() {
               graph={graph}
               statuses={statuses}
               selectedId={selectedId}
+              agents={agents}
               onSelect={setSelectedId}
               onChange={setGraph}
             />

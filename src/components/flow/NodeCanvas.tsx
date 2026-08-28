@@ -36,12 +36,14 @@ export function NodeCanvas({
   graph,
   statuses,
   selectedId,
+  agents = [],
   onSelect,
   onChange,
 }: {
   graph: FlowGraph;
   statuses: Record<string, NodeStatus>;
   selectedId: string | null;
+  agents?: { id: string; name: string; model?: string | null }[];
   onSelect: (id: string | null) => void;
   onChange: (graph: FlowGraph) => void;
 }) {
@@ -223,7 +225,17 @@ export function NodeCanvas({
               </p>
               <p className="mt-1 truncate text-sm font-medium">{node.label}</p>
               <p className="mt-1 truncate text-[11px] text-muted-foreground">
-                {status === "idle" ? "" : status}
+                {node.kind === "action" && node.subtype === "agent"
+                  ? (() => {
+                      const agentId = typeof node.config?.["agentId"] === "string" ? node.config["agentId"] : "";
+                      const agent = agents.find((a) => a.id === agentId);
+                      return agent
+                        ? `${agent.name} · ${agent.model ?? "default"}`
+                        : "Orchestrator · auto-picks agent";
+                    })()
+                  : status === "idle"
+                    ? ""
+                    : status}
               </p>
 
               {outputPorts(node).map((port) => {
