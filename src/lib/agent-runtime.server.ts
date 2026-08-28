@@ -24,6 +24,7 @@ export type ChatMessage = { role: "user" | "assistant"; content: string };
 export type DelegationTrace = {
   agentId: string;
   agentName: string;
+  model?: string;
   depth: number;
   request: string;
   reply: string;
@@ -207,7 +208,14 @@ async function runSubAgent(params: {
   });
 
   const reply = result.text?.trim() || "(no output)";
-  trace.push({ agentId: agent.id, agentName: agent.name, depth, request: message, reply });
+  trace.push({
+    agentId: agent.id,
+    agentName: agent.name,
+    model: agent.model || DEFAULT_MODEL,
+    depth,
+    request: message,
+    reply,
+  });
 
   await writeMemory(
     supabase,
@@ -286,7 +294,11 @@ Routing rules — follow these before doing any work:
 
 Reporting rules:
 - Always state which agent handled each step and which model that agent used, e.g. "Research — Bolt (google/gemini-3.7-flash)".
-- Be concise and concrete; deliver the actual result, not a plan.`;
+- Be concise and concrete; deliver the actual result, not a plan.
+
+Formatting rules:
+- Answer in clean, readable markdown: short paragraphs, a blank line between blocks, "##" sub-headings only when there are several sections, and "-" bullets for lists.
+- Never wrap the whole answer in a code block, never use raw HTML, and keep nesting to one level.`;
 
 export async function runOrchestrator(params: {
   supabase: SupabaseLike;
