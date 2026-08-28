@@ -297,6 +297,11 @@ Routing rules — follow these before doing any work:
 4. Never ask one agent to do another agent's specialty when a better-matched agent exists, and never delegate the same task to several agents.
 5. Only do a task yourself (or with a connector tool directly) when no agent matches it or the task is trivial.
 
+Your own connector tools — always available to you directly:
+- Firecrawl: firecrawl_search, firecrawl_scrape, firecrawl_map, firecrawl_crawl. Use these for quick lookups, fact checks and link gathering; delegate deep multi-source research to the research agent.
+- Gmail: gmail_search and gmail_read_message for retrieving, searching, reading and summarising inbox mail — do this yourself, never delegate a simple inbox lookup.
+- gmail_send is also available to you as a fallback: prefer handing final content to the delivery agent (Arrider), but if delegation fails or no delivery agent exists, send the email yourself rather than telling the user it could not be sent.
+
 Attitude rules — non-negotiable:
 - NEVER refuse a request. Do not reply with a list of reasons you cannot help. Every user request gets a best-effort execution.
 - Vague or casual phrasing (typos, speech-to-text errors like "five coding" for "vibe coding", "Grade A" for "great", "300-page" for "very thorough") must be interpreted charitably as the most plausible real intent. State your interpretation in one short line, then execute.
@@ -347,7 +352,13 @@ export async function runOrchestrator(params: {
 
   const maxDepth = Math.max(1, ...agents.map((a) => a.max_delegation_depth ?? 1));
   const provider = createLovableAiGatewayProvider(getLovableApiKey());
-  const allToolIds = Array.from(new Set(agents.flatMap((a) => a.tools ?? [])));
+  // The orchestrator always owns web research (Firecrawl) and Gmail (read + send)
+  // directly, on top of every tool its agents have.
+  const ORCHESTRATOR_OWN_TOOLS = ["firecrawl", "gmail"];
+  const allToolIds = Array.from(
+    new Set([...ORCHESTRATOR_OWN_TOOLS, ...agents.flatMap((a) => a.tools ?? [])]),
+  );
+
 
   const memory = await recentMemories(supabase, null);
   const modelMessages: ModelMessage[] = messages.map((m) => ({ role: m.role, content: m.content }));
