@@ -1,14 +1,14 @@
 import type { FlowGraph } from "./flow-types";
 
-const COL_WIDTH = 260;
-const ROW_HEIGHT = 190;
+const COL_WIDTH = 300;
+const ROW_HEIGHT = 150;
 const ORIGIN_X = 120;
 const ORIGIN_Y = 100;
 
 /**
- * Deterministic top-to-bottom layered layout so a generated flow always reads
- * as a visible chain: each node sits one row below the node that feeds it,
- * and siblings (e.g. true/false branches) spread across columns in that row.
+ * Deterministic left-to-right layered layout so a generated flow always reads
+ * as a visible chain: each node sits one column to the right of the node that
+ * feeds it, and siblings (e.g. true/false branches) stack vertically in that column.
  */
 export function autoLayout(graph: FlowGraph): FlowGraph {
   const nodes = graph.nodes;
