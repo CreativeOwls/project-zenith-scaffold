@@ -5,7 +5,13 @@ import { Button } from "@/components/ui/button";
 import { TOOL_CATALOG } from "@/lib/connector-catalog";
 import { NODE_SUBTYPES, type FlowNode, type JsonValue, type NodeKind } from "@/lib/flow-types";
 
-type AgentOption = { id: string; name: string };
+export type AgentOption = {
+  id: string;
+  name: string;
+  model?: string | null;
+  description?: string | null;
+  tools?: string[] | null;
+};
 
 export function NodeInspector({
   node,
@@ -119,13 +125,35 @@ export function NodeInspector({
                 value={text("agentId")}
                 onChange={(e) => setConfig("agentId", e.target.value)}
               >
-                <option value="">Orchestrator (all agents)</option>
+                <option value="">Orchestrator (picks the best agent)</option>
                 {agents.map((agent) => (
                   <option key={agent.id} value={agent.id}>
-                    {agent.name}
+                    {agent.name} — {agent.model ?? "default model"}
                   </option>
                 ))}
               </select>
+              {(() => {
+                const selected = agents.find((a) => a.id === text("agentId"));
+                if (!selected) {
+                  return (
+                    <p className="text-xs text-muted-foreground">
+                      The orchestrator will choose the best-matching agent at run time.
+                    </p>
+                  );
+                }
+                return (
+                  <div className="rounded-md border border-border bg-muted/30 p-2 text-xs">
+                    <p className="font-medium">{selected.name}</p>
+                    <p className="text-muted-foreground">Model: {selected.model ?? "default"}</p>
+                    <p className="text-muted-foreground">
+                      Tools: {selected.tools?.length ? selected.tools.join(", ") : "none"}
+                    </p>
+                    {selected.description && (
+                      <p className="mt-1 text-muted-foreground">{selected.description}</p>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
             {field("message", "Message", "Summarise this: {{input}}", true)}
           </div>

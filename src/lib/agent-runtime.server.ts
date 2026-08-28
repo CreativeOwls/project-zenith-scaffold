@@ -232,17 +232,24 @@ function delegationTool(params: {
   const { supabase, userId, agents, depth, maxDepth, trace, excludeId } = params;
   const candidates = agents.filter((a) => a.id !== excludeId);
   const roster = candidates
-    .map((a) => `- ${a.id} — ${a.name}: ${a.description ?? "no description"} (tools: ${(a.tools ?? []).join(", ") || "none"})`)
+    .map(
+      (a) =>
+        `- id: ${a.id} | name: ${a.name} | model: ${a.model ?? DEFAULT_MODEL} | tools: ${
+          (a.tools ?? []).join(", ") || "none"
+        } | specialty: ${a.description ?? "no description"}`,
+    )
     .join("\n");
 
   return {
     delegate_to_agent: tool({
       description:
-        `Delegate a task to one of the user's specialist agents. Available agents:\n${roster || "(none)"}\n` +
-        `Pass the agent's id and a self-contained instruction.`,
+        `Delegate a task to the single best-matching specialist agent. Match on the agent's specialty and its tools — never pick an agent whose tools cannot do the job (e.g. web research needs an agent with a web/crawl tool).\n` +
+        `Available agents:\n${roster || "(none)"}\n` +
+        `Pass the agent's exact id, a self-contained instruction, and a one-line reason for choosing this agent.`,
       inputSchema: z.object({
         agent_id: z.string(),
         message: z.string(),
+        reason: z.string().nullable(),
       }),
       execute: async ({ agent_id, message }) => {
         const agent = candidates.find((a) => a.id === agent_id);
@@ -259,7 +266,7 @@ function delegationTool(params: {
             maxDepth: Math.max(maxDepth, agent.max_delegation_depth ?? 1),
             trace,
           });
-          return { agent: agent.name, reply };
+          return { agent: agent.name, model: agent.model ?? DEFAULT_MODEL, reply };
         } catch (error) {
           return { error: error instanceof Error ? error.message : String(error) };
         }
@@ -269,11 +276,17 @@ function delegationTool(params: {
 }
 
 const ORCHESTRATOR_PROMPT = `You are the AI Hub orchestrator. You coordinate the user's specialist agents and connector tools.
-Rules:
-- Prefer delegating specialist work with delegate_to_agent when a suitable agent exists.
-- You may also call connector tools directly when that is faster.
-- Always tell the user which agent did what.
-- Be concise and concrete.`;
+
+Routing rules — follow these before doing any work:
+1. Break the user's request into concrete tasks.
+2. For each task, choose the ONE best-matching agent from the roster below, matching on the agent's stated specialty AND on whether its tools can actually perform the task (e.g. live web research requires an agent with a web/crawl tool; writing goes to the writing agent; review/verification goes to the QA agent).
+3. Delegate each task with delegate_to_agent, in a sensible order, passing results forward (research first, then writing, then QA review).
+4. Never ask one agent to do another agent's specialty when a better-matched agent exists, and never delegate the same task to several agents.
+5. Only do a task yourself (or with a connector tool directly) when no agent matches it or the task is trivial.
+
+Reporting rules:
+- Always state which agent handled each step and which model that agent used, e.g. "Research — Bolt (google/gemini-3.7-flash)".
+- Be concise and concrete; deliver the actual result, not a plan.`;
 
 export async function runOrchestrator(params: {
   supabase: SupabaseLike;
@@ -319,7 +332,14 @@ export async function runOrchestrator(params: {
   const result = await generateText({
     model: provider(DEFAULT_MODEL),
     system: `${ORCHESTRATOR_PROMPT}\n\nSaved agents:\n${
-      agents.map((a) => `- ${a.name} (${a.id}): ${a.description ?? ""}`).join("\n") || "(none yet)"
+      agents
+        .map(
+          (a) =>
+            `- ${a.name} (id: ${a.id}) — model: ${a.model ?? DEFAULT_MODEL} — tools: ${
+              (a.tools ?? []).join(", ") || "none"
+            } — specialty: ${a.description ?? "no description"}`,
+        )
+        .join("\n") || "(none yet)"
     }${memory}`,
     messages: modelMessages,
     tools: {
