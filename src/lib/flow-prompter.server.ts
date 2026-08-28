@@ -90,6 +90,107 @@ function extractJson(text: string): unknown {
   return JSON.parse(candidate.slice(start, end + 1));
 }
 
+const KIND_ALIASES: Record<string, FlowNode["kind"]> = {
+  input: "input",
+  trigger: "input",
+  start: "input",
+  action: "action",
+  task: "action",
+  step: "action",
+  logic: "logic",
+  condition: "logic",
+  branch: "logic",
+  if: "logic",
+  loop: "loop",
+  iterate: "loop",
+  output: "output",
+  end: "output",
+  result: "output",
+};
+
+const SUBTYPE_ALIASES: Record<string, string> = {
+  // action
+  ai: "prompt",
+  llm: "prompt",
+  model: "prompt",
+  prompt: "prompt",
+  agent: "agent",
+  subagent: "agent",
+  tool: "tool",
+  connector: "tool",
+  function: "tool",
+  http: "http",
+  api: "http",
+  fetch: "http",
+  request: "http",
+  // input
+  text: "text",
+  manual: "text",
+  webhook: "webhook",
+  cron: "cron",
+  schedule: "cron",
+  // logic
+  keyword: "keyword",
+  regex: "regex",
+  // loop
+  for_each: "for_each",
+  foreach: "for_each",
+  each: "for_each",
+  map: "for_each",
+  while: "while",
+  // output
+  display: "display",
+  show: "display",
+  email: "email",
+  mail: "email",
+  gmail: "email",
+  save: "save",
+  store: "save",
+  notify: "notify",
+};
+
+/**
+ * Models regularly emit "action/tool", "Action", "ACTION_TOOL" or put the kind
+ * in the subtype. Coerce whatever they wrote into a valid kind + subtype pair
+ * instead of failing validation on a graph that is otherwise fine.
+ */
+function coerceKindSubtype(rawKind: unknown, rawSubtype: unknown) {
+  const tokens = `${String(rawKind ?? "")}/${String(rawSubtype ?? "")}`
+    .toLowerCase()
+    .split(/[^a-z_]+/)
+    .filter(Boolean);
+
+  let kind: FlowNode["kind"] | undefined;
+  let subtype: string | undefined;
+
+  for (const token of tokens) {
+    if (!kind && KIND_ALIASES[token]) {
+      kind = KIND_ALIASES[token];
+      continue;
+    }
+    if (!subtype && SUBTYPE_ALIASES[token]) subtype = SUBTYPE_ALIASES[token];
+  }
+
+  // "for_each" arrives as two tokens once split on non-letters is applied.
+  if (!subtype && tokens.includes("for")) subtype = "for_each";
+
+  kind ??= "action";
+  const allowed = (NODE_SUBTYPES[kind] ?? []).map((s) => s.value);
+  if (!subtype || !allowed.includes(subtype)) {
+    // Prefer a same-named subtype under another kind before falling back.
+    const owner = (Object.keys(NODE_SUBTYPES) as FlowNode["kind"][]).find((k) =>
+      subtype ? (NODE_SUBTYPES[k] ?? []).some((s) => s.value === subtype) : false,
+    );
+    if (subtype && owner && !KIND_ALIASES[String(rawKind ?? "").toLowerCase()]) {
+      kind = owner;
+    } else {
+      subtype = allowed[0] ?? "prompt";
+    }
+  }
+
+  return { kind, subtype: subtype! };
+}
+
 function normalizeGraph(raw: unknown): { graph: FlowGraph; name: string; description: string } {
   const parsed = raw as {
     name?: string;
@@ -98,15 +199,19 @@ function normalizeGraph(raw: unknown): { graph: FlowGraph; name: string; descrip
     connections?: Partial<FlowConnection>[];
   };
 
-  const nodes: FlowNode[] = (parsed.nodes ?? []).map((node, index) => ({
-    id: String(node.id ?? `n${index + 1}`),
-    kind: (node.kind ?? "action") as FlowNode["kind"],
-    subtype: String(node.subtype ?? "prompt"),
-    label: String(node.label ?? `Node ${index + 1}`),
-    x: Number.isFinite(Number(node.x)) ? Number(node.x) : 120 + index * 60,
-    y: Number.isFinite(Number(node.y)) ? Number(node.y) : 120 + index * 150,
-    config: (node.config ?? {}) as FlowNode["config"],
-  }));
+  const nodes: FlowNode[] = (parsed.nodes ?? []).map((node, index) => {
+    const { kind, subtype } = coerceKindSubtype(node.kind, node.subtype);
+    return {
+      id: String(node.id ?? `n${index + 1}`),
+      kind,
+      subtype,
+      label: String(node.label ?? `Node ${index + 1}`),
+      x: Number.isFinite(Number(node.x)) ? Number(node.x) : 120 + index * 60,
+      y: Number.isFinite(Number(node.y)) ? Number(node.y) : 120 + index * 150,
+      config: (node.config ?? {}) as FlowNode["config"],
+    };
+  });
+
 
   const connections: FlowConnection[] = (parsed.connections ?? []).map((connection, index) => ({
     id: String(connection.id ?? `c${index + 1}`),
