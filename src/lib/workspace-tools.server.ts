@@ -38,7 +38,7 @@ function applyFilters(query: any, filters: Filters) {
 
 async function db() {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  return supabaseAdmin;
+  return supabaseAdmin as unknown as { from: (table: string) => any };
 }
 
 function safe<T>(run: () => Promise<T>) {
