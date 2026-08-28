@@ -110,6 +110,27 @@ const TOOLS_BY_ID: Record<string, () => ToolSet> = {
       limit: z.number().nullable(),
     }),
   }),
+  firecrawl: () => ({
+    firecrawl_scrape: connectorTool("firecrawl_scrape", "Scrape one URL and return clean markdown.", {
+      url: z.string(),
+      onlyMainContent: z.boolean().nullable(),
+    }),
+    firecrawl_search: connectorTool("firecrawl_search", "Search the web and return titles, urls and snippets.", {
+      query: z.string(),
+      limit: z.number().nullable(),
+      scrapeContent: z.boolean().nullable().describe("true to also return page markdown"),
+    }),
+    firecrawl_map: connectorTool("firecrawl_map", "List the URLs of a website, optionally filtered by keyword.", {
+      url: z.string(),
+      search: z.string().nullable(),
+      limit: z.number().nullable(),
+    }),
+    firecrawl_crawl: connectorTool("firecrawl_crawl", "Crawl a site and return markdown for each page (small limits only).", {
+      url: z.string(),
+      limit: z.number().nullable(),
+      maxDepth: z.number().nullable(),
+    }),
+  }),
 };
 
 export function toolsForIds(ids: string[]): ToolSet {

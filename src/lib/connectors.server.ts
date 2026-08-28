@@ -19,6 +19,8 @@ export function connectorConfigured(id: string): boolean {
       return Boolean(process.env["FHIR_BASE_URL"] && process.env["FHIR_BEARER_TOKEN"]);
     case "reddit":
       return Boolean(process.env["REDDIT_CLIENT_ID"] && process.env["REDDIT_CLIENT_SECRET"]);
+    case "firecrawl":
+      return Boolean(process.env["FIRECRAWL_API_KEY"]);
     default:
       return false;
   }
@@ -419,6 +421,128 @@ export async function redditGetPostComments(postId: string, limit = 20) {
   return { count: comments.length, comments };
 }
 
+/* ------------------------------ Firecrawl ------------------------------- */
+
+// This connection is direct-API mode: FIRECRAWL_API_KEY is a real Firecrawl
+// key (fc-*) used as a bearer against api.firecrawl.dev — no gateway.
+const FIRECRAWL_V2 = "https://api.firecrawl.dev/v2";
+
+async function firecrawlPost(path: string, body: Record<string, unknown>) {
+  const response = await fetch(`${FIRECRAWL_V2}${path}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${requireEnv("FIRECRAWL_API_KEY")}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  const text = await response.text();
+  if (!response.ok) throw new Error(`Firecrawl error ${response.status}: ${text.slice(0, 400)}`);
+  return (text ? JSON.parse(text) : {}) as Record<string, unknown>;
+}
+
+async function firecrawlGet(path: string) {
+  const response = await fetch(`${FIRECRAWL_V2}${path}`, {
+    headers: { Authorization: `Bearer ${requireEnv("FIRECRAWL_API_KEY")}` },
+  });
+  const text = await response.text();
+  if (!response.ok) throw new Error(`Firecrawl error ${response.status}: ${text.slice(0, 400)}`);
+  return (text ? JSON.parse(text) : {}) as Record<string, unknown>;
+}
+
+type FirecrawlDoc = {
+  markdown?: string;
+  summary?: string;
+  title?: string;
+  url?: string;
+  description?: string;
+  metadata?: { title?: string; sourceURL?: string; description?: string };
+};
+
+function unwrap(result: Record<string, unknown>): Record<string, unknown> {
+  const data = result["data"];
+  return data && typeof data === "object" && !Array.isArray(data)
+    ? (data as Record<string, unknown>)
+    : result;
+}
+
+function docSummary(doc: FirecrawlDoc, chars = 4000) {
+  return {
+    title: doc.title ?? doc.metadata?.title ?? "",
+    url: doc.url ?? doc.metadata?.sourceURL ?? "",
+    description: doc.description ?? doc.metadata?.description ?? "",
+    markdown: (doc.markdown ?? doc.summary ?? "").slice(0, chars),
+  };
+}
+
+export async function firecrawlScrape(url: string, onlyMainContent = true) {
+  const doc = unwrap(
+    await firecrawlPost("/scrape", { url, formats: ["markdown"], onlyMainContent }),
+  ) as FirecrawlDoc;
+  return docSummary(doc);
+}
+
+export async function firecrawlSearch(query: string, limit = 5, scrapeContent = false) {
+  const result = await firecrawlPost("/search", {
+    query,
+    limit: Math.min(Math.max(limit, 1), 20),
+    ...(scrapeContent ? { scrapeOptions: { formats: ["markdown"] } } : {}),
+  });
+  const raw = result["data"];
+  const items = Array.isArray(raw)
+    ? (raw as FirecrawlDoc[])
+    : (((raw as { web?: FirecrawlDoc[] } | undefined)?.web ?? []) as FirecrawlDoc[]);
+  const results = items.map((doc) => docSummary(doc, scrapeContent ? 1500 : 400));
+  return { count: results.length, results };
+}
+
+export async function firecrawlMap(url: string, search?: string, limit = 100) {
+  const result = await firecrawlPost("/map", {
+    url,
+    ...(search ? { search } : {}),
+    limit: Math.min(Math.max(limit, 1), 500),
+  });
+  const source = unwrap(result);
+  const rawLinks = (source["links"] ?? result["links"] ?? []) as unknown[];
+  const links = rawLinks
+    .map((entry) =>
+      typeof entry === "string" ? entry : String((entry as { url?: string })?.url ?? ""),
+    )
+    .filter(Boolean);
+  return { count: links.length, links };
+}
+
+/** Starts a crawl and polls briefly; returns the job id if it is still running. */
+export async function firecrawlCrawl(url: string, limit = 10, maxDepth?: number) {
+  const start = await firecrawlPost("/crawl", {
+    url,
+    limit: Math.min(Math.max(limit, 1), 50),
+    ...(maxDepth ? { maxDepth } : {}),
+    scrapeOptions: { formats: ["markdown"] },
+  });
+  const jobId = String(start["id"] ?? "");
+  if (!jobId) throw new Error("Firecrawl did not return a crawl id");
+
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+    const status = await firecrawlGet(`/crawl/${jobId}`);
+    if (status["status"] === "completed") {
+      const pages = ((status["data"] as FirecrawlDoc[] | undefined) ?? []).map((doc) =>
+        docSummary(doc, 1500),
+      );
+      return { jobId, status: "completed", count: pages.length, pages };
+    }
+    if (status["status"] === "failed") {
+      throw new Error(`Firecrawl crawl failed: ${String(status["error"] ?? "unknown error")}`);
+    }
+  }
+  return {
+    jobId,
+    status: "running",
+    note: "Crawl still running; check back with the job id.",
+  };
+}
+
 /* ---------------------------- Action dispatch ---------------------------- */
 
 export type ConnectorAction =
@@ -435,7 +559,11 @@ export type ConnectorAction =
   | "fhir_get_observations"
   | "reddit_search_subreddit"
   | "reddit_get_top_posts"
-  | "reddit_get_post_comments";
+  | "reddit_get_post_comments"
+  | "firecrawl_scrape"
+  | "firecrawl_search"
+  | "firecrawl_map"
+  | "firecrawl_crawl";
 
 type Args = Record<string, unknown>;
 const str = (args: Args, key: string, fallback = "") => String(args[key] ?? fallback);
@@ -488,6 +616,26 @@ export async function runConnectorAction(action: string, args: Args): Promise<un
       return redditGetTopPosts(str(args, "subreddit"), str(args, "timeframe", "week"), num(args, "limit", 10));
     case "reddit_get_post_comments":
       return redditGetPostComments(str(args, "postId"), num(args, "limit", 20));
+    case "firecrawl_scrape":
+      return firecrawlScrape(str(args, "url"), args["onlyMainContent"] !== false);
+    case "firecrawl_search":
+      return firecrawlSearch(
+        str(args, "query"),
+        num(args, "limit", 5),
+        args["scrapeContent"] === true,
+      );
+    case "firecrawl_map":
+      return firecrawlMap(
+        str(args, "url"),
+        args["search"] ? str(args, "search") : undefined,
+        num(args, "limit", 100),
+      );
+    case "firecrawl_crawl":
+      return firecrawlCrawl(
+        str(args, "url"),
+        num(args, "limit", 10),
+        args["maxDepth"] ? num(args, "maxDepth", 2) : undefined,
+      );
     default:
       throw new Error(`Unknown connector action: ${action}`);
   }

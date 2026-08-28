@@ -8,9 +8,9 @@ import { Button } from "@/components/ui/button";
 import { TOOL_CATALOG } from "@/lib/connector-catalog";
 import { getConnectorStatus, testConnectorAction } from "@/lib/connectors.functions";
 
-const TITLE = "Connectors — Gmail, Slides, FHIR, Reddit | PROJECT 5";
+const TITLE = "Connectors — Gmail, Slides, FHIR, Reddit, Firecrawl | PROJECT 5";
 const DESCRIPTION =
-  "Connection status for the tools your agents and flows can call: Gmail, Google Slides, FHIR and Reddit.";
+  "Connection status for the tools your agents and flows can call: Gmail, Google Slides, FHIR, Reddit and Firecrawl.";
 
 export const Route = createFileRoute("/connectors")({
   head: () => ({
@@ -36,6 +36,7 @@ const SMOKE_TESTS: Record<string, { action: string; args: Record<string, unknown
   google_slides: { action: "slides_read", args: { presentationId: "" } },
   fhir: { action: "fhir_search_patient", args: { name: "a", limit: 2 } },
   reddit: { action: "reddit_get_top_posts", args: { subreddit: "artificial", timeframe: "week", limit: 3 } },
+  firecrawl: { action: "firecrawl_search", args: { query: "firecrawl docs", limit: 2 } },
 };
 
 function ConnectorsPage() {

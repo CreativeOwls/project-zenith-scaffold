@@ -1,6 +1,6 @@
 // Client-safe catalog of tool ids shared by the agent hub, node canvas and connectors page.
 
-export type ToolId = "gmail" | "google_slides" | "fhir" | "reddit";
+export type ToolId = "gmail" | "google_slides" | "fhir" | "reddit" | "firecrawl";
 
 export type ToolCatalogEntry = {
   id: ToolId;
@@ -44,6 +44,13 @@ export const TOOL_CATALOG: ToolCatalogEntry[] = [
     kind: "custom",
     description: "Search subreddits, read top posts and post comments.",
     actions: ["reddit_search_subreddit", "reddit_get_top_posts", "reddit_get_post_comments"],
+  },
+  {
+    id: "firecrawl",
+    label: "Firecrawl",
+    kind: "native",
+    description: "Scrape a page, search the web, map a site's URLs or crawl a whole site into clean markdown.",
+    actions: ["firecrawl_scrape", "firecrawl_search", "firecrawl_map", "firecrawl_crawl"],
   },
 ];
 
