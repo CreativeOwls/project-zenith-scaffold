@@ -5,7 +5,13 @@ import { Button } from "@/components/ui/button";
 import { TOOL_CATALOG } from "@/lib/connector-catalog";
 import { NODE_SUBTYPES, type FlowNode, type JsonValue, type NodeKind } from "@/lib/flow-types";
 
-type AgentOption = { id: string; name: string };
+export type AgentOption = {
+  id: string;
+  name: string;
+  model?: string | null;
+  description?: string | null;
+  tools?: string[] | null;
+};
 
 export function NodeInspector({
   node,
