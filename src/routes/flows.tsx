@@ -97,8 +97,8 @@ function FlowsPage() {
       kind,
       subtype: NODE_SUBTYPES[kind]![0]!.value,
       label: `${kind} node`,
-      x: 120 + graph.nodes.length * 40,
-      y: 100 + graph.nodes.length * 60,
+      x: 120 + graph.nodes.length * 300,
+      y: 140 + (graph.nodes.length % 2) * 40,
       config: {},
     };
     setGraph({ ...graph, nodes: [...graph.nodes, node] });

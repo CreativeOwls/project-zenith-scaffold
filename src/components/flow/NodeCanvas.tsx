@@ -17,12 +17,12 @@ export const NODE_HEIGHT = 92;
 function portPosition(node: FlowNode, port: string) {
   const ports = outputPorts(node);
   const index = Math.max(0, ports.indexOf(port));
-  const step = NODE_WIDTH / (ports.length + 1);
-  return { x: node.x + step * (index + 1), y: node.y + NODE_HEIGHT };
+  const step = NODE_HEIGHT / (ports.length + 1);
+  return { x: node.x + NODE_WIDTH, y: node.y + step * (index + 1) };
 }
 
 function inputPosition(node: FlowNode) {
-  return { x: node.x + NODE_WIDTH / 2, y: node.y };
+  return { x: node.x, y: node.y + NODE_HEIGHT / 2 };
 }
 
 const STATUS_RING: Record<NodeStatus, string> = {
@@ -152,8 +152,8 @@ export function NodeCanvas({
             if (!from || !to) return null;
             const start = portPosition(from, connection.fromPort);
             const end = inputPosition(to);
-            const mid = (start.y + end.y) / 2;
-            const path = `M ${start.x} ${start.y} C ${start.x} ${mid}, ${end.x} ${mid}, ${end.x} ${end.y}`;
+            const mid = (start.x + end.x) / 2;
+            const path = `M ${start.x} ${start.y} C ${mid} ${start.y}, ${mid} ${end.y}, ${end.x} ${end.y}`;
 
             const fromStatus = statuses[from.id] ?? "idle";
             const toStatus = statuses[to.id] ?? "idle";
@@ -195,8 +195,8 @@ export function NodeCanvas({
                   </>
                 ) : null}
                 <circle
-                  cx={(start.x + end.x) / 2}
-                  cy={mid}
+                  cx={mid}
+                  cy={(start.y + end.y) / 2}
                   r={6}
                   fill="transparent"
                   className="cursor-pointer"
@@ -241,7 +241,7 @@ export function NodeCanvas({
                     connect(node.id);
                   }}
                   className={cn(
-                    "absolute -top-2 left-1/2 size-3.5 -translate-x-1/2 rounded-full border border-foreground/50 bg-background",
+                    "absolute -left-2 top-1/2 size-3.5 -translate-y-1/2 rounded-full border border-foreground/50 bg-background",
                     pending && "border-accent-blue bg-accent-blue/40",
                   )}
                 />
@@ -268,7 +268,7 @@ export function NodeCanvas({
               {outputPorts(node).map((port) => {
                 const ports = outputPorts(node);
                 const step = 100 / (ports.length + 1);
-                const left = step * (ports.indexOf(port) + 1);
+                const top = step * (ports.indexOf(port) + 1);
                 const active = pending?.nodeId === node.id && pending.port === port;
                 return (
                   <button
@@ -281,14 +281,14 @@ export function NodeCanvas({
                       setPending(active ? null : { nodeId: node.id, port });
                     }}
                     className={cn(
-                      "absolute -bottom-2 size-3.5 -translate-x-1/2 rounded-full border border-foreground/50 bg-background",
+                      "absolute -right-2 size-3.5 -translate-y-1/2 rounded-full border border-foreground/50 bg-background",
                       active && "border-accent-blue bg-accent-blue",
                       port === "true" || port === "body" ? "border-accent-green" : "",
                       port === "false" ? "border-accent-red" : "",
                     )}
-                    style={{ left: `${left}%` }}
+                    style={{ top: `${top}%` }}
                   >
-                    <span className="absolute left-1/2 top-4 -translate-x-1/2 text-[9px] text-muted-foreground">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 whitespace-nowrap text-[9px] text-muted-foreground">
                       {port === "out" ? "" : port}
                     </span>
                   </button>
