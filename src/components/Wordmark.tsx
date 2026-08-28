@@ -27,9 +27,9 @@ export function Wordmark({ text }: { text: string }) {
         const isLast = i === lastIndex;
         const color =
           hovered === i
-            ? ACCENTS[i % ACCENTS.length]
+            ? ACCENTS[i % ACCENTS.length]!
             : isLast
-              ? ACCENTS[tick % ACCENTS.length]
+              ? ACCENTS[tick % ACCENTS.length]!
               : "text-foreground";
 
         return (
