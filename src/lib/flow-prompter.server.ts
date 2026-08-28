@@ -317,10 +317,48 @@ Return ONLY JSON:
   });
 
   const normalized = normalizeGraph(extractJson(result.text ?? ""));
+  repairNodeConfigs(normalized.graph, params.agents);
   const validation = validateGraph(normalized.graph);
   reconcileAgentNodes(normalized.graph, params.agents, validation);
   return { ...normalized, validation };
 }
+
+/**
+ * Fill in config the model tends to omit so a structurally sound graph is not
+ * rejected for a blank field the canvas can already edit.
+ */
+function repairNodeConfigs(graph: FlowGraph, agents: PrompterAgent[]) {
+  const validActions = new Set(TOOL_CATALOG.flatMap((t) => t.actions));
+
+  for (const node of graph.nodes) {
+    const config = { ...((node.config ?? {}) as Record<string, unknown>) };
+    const blank = (key: string) => !config[key] || String(config[key]).trim() === "";
+
+    if (node.kind === "action") {
+      if (node.subtype === "tool" && (blank("action") || !validActions.has(String(config["action"])))) {
+        // No usable tool action: run the step as an agent when we have one,
+        // otherwise as a plain prompt.
+        if (agents.length > 0) {
+          node.subtype = "agent";
+          config["agentId"] = config["agentId"] ?? agents[0]!.id;
+          if (blank("message")) config["message"] = `${node.label}\n\n{{input}}`;
+        } else {
+          node.subtype = "prompt";
+          if (blank("prompt")) config["prompt"] = `${node.label}\n\n{{input}}`;
+        }
+      }
+      if (node.subtype === "prompt" && blank("prompt")) config["prompt"] = `${node.label}\n\n{{input}}`;
+      if (node.subtype === "agent" && blank("message")) config["message"] = `${node.label}\n\n{{input}}`;
+    }
+
+    if (node.kind === "logic" && node.subtype === "ai" && blank("question")) {
+      config["question"] = node.label;
+    }
+
+    node.config = config as FlowNode["config"];
+  }
+}
+
 
 /**
  * The model occasionally writes an agent name (or a stale id) into agentId.
