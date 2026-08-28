@@ -153,20 +153,47 @@ export function NodeCanvas({
             const start = portPosition(from, connection.fromPort);
             const end = inputPosition(to);
             const mid = (start.y + end.y) / 2;
-            const stroke =
+            const path = `M ${start.x} ${start.y} C ${start.x} ${mid}, ${end.x} ${mid}, ${end.x} ${end.y}`;
+
+            const fromStatus = statuses[from.id] ?? "idle";
+            const toStatus = statuses[to.id] ?? "idle";
+            // A link is "live" while the handoff is happening, and "done" once both ends finished.
+            const live = fromStatus === "success" && (toStatus === "running" || toStatus === "idle");
+            const done = fromStatus === "success" && (toStatus === "success" || toStatus === "error");
+
+            const baseStroke =
               connection.fromPort === "true" || connection.fromPort === "body"
                 ? "var(--accent-green)"
                 : connection.fromPort === "false"
                   ? "var(--accent-red)"
                   : "rgba(255,255,255,0.35)";
+            const stroke = live ? "var(--accent-yellow)" : done ? "var(--accent-green)" : baseStroke;
+
             return (
               <g key={connection.id} className="pointer-events-auto">
                 <path
-                  d={`M ${start.x} ${start.y} C ${start.x} ${mid}, ${end.x} ${mid}, ${end.x} ${end.y}`}
+                  d={path}
                   fill="none"
                   stroke={stroke}
-                  strokeWidth={1.6}
+                  strokeWidth={live || done ? 2.4 : 1.6}
+                  opacity={live ? 1 : done ? 0.85 : 1}
+                  className={live ? "flow-link-live" : undefined}
                 />
+                {live ? (
+                  <>
+                    <path
+                      d={path}
+                      fill="none"
+                      stroke="var(--accent-yellow)"
+                      strokeWidth={6}
+                      opacity={0.18}
+                      className="flow-link-glow"
+                    />
+                    <circle r={4} fill="var(--accent-yellow)">
+                      <animateMotion dur="1.1s" repeatCount="indefinite" path={path} />
+                    </circle>
+                  </>
+                ) : null}
                 <circle
                   cx={(start.x + end.x) / 2}
                   cy={mid}
