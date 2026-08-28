@@ -1,9 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { demoContext } from "./demo-context";
 
 export const getConnectorStatus = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([demoContext])
   .handler(async () => {
     const { connectorConfigured } = await import("./connectors.server");
     const { TOOL_CATALOG } = await import("./connector-catalog");
@@ -14,7 +14,7 @@ export const getConnectorStatus = createServerFn({ method: "GET" })
   });
 
 export const testConnectorAction = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([demoContext])
   .inputValidator((input: { action: string; args?: Record<string, unknown> }) => {
     if (!input?.action) throw new Error("An action is required");
     return input;

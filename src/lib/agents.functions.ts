@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { demoContext } from "./demo-context";
 
 export type AgentInput = {
   id?: string | null;
@@ -14,7 +14,7 @@ export type AgentInput = {
 };
 
 export const listAgents = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([demoContext])
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
       .from("agents")
@@ -25,7 +25,7 @@ export const listAgents = createServerFn({ method: "GET" })
   });
 
 export const saveAgent = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([demoContext])
   .inputValidator((input: AgentInput) => {
     if (!input?.name?.trim()) throw new Error("Agent name is required");
     return input;
@@ -63,7 +63,7 @@ export const saveAgent = createServerFn({ method: "POST" })
   });
 
 export const deleteAgent = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([demoContext])
   .inputValidator((input: { id: string }) => input)
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase.from("agents").delete().eq("id", data.id);
@@ -72,7 +72,7 @@ export const deleteAgent = createServerFn({ method: "POST" })
   });
 
 export const listMemories = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([demoContext])
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
       .from("agent_memories")
