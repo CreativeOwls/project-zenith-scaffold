@@ -268,7 +268,7 @@ export function NodeCanvas({
               {outputPorts(node).map((port) => {
                 const ports = outputPorts(node);
                 const step = 100 / (ports.length + 1);
-                const left = step * (ports.indexOf(port) + 1);
+                const top = step * (ports.indexOf(port) + 1);
                 const active = pending?.nodeId === node.id && pending.port === port;
                 return (
                   <button
@@ -281,14 +281,14 @@ export function NodeCanvas({
                       setPending(active ? null : { nodeId: node.id, port });
                     }}
                     className={cn(
-                      "absolute -bottom-2 size-3.5 -translate-x-1/2 rounded-full border border-foreground/50 bg-background",
+                      "absolute -right-2 size-3.5 -translate-y-1/2 rounded-full border border-foreground/50 bg-background",
                       active && "border-accent-blue bg-accent-blue",
                       port === "true" || port === "body" ? "border-accent-green" : "",
                       port === "false" ? "border-accent-red" : "",
                     )}
-                    style={{ left: `${left}%` }}
+                    style={{ top: `${top}%` }}
                   >
-                    <span className="absolute left-1/2 top-4 -translate-x-1/2 text-[9px] text-muted-foreground">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 whitespace-nowrap text-[9px] text-muted-foreground">
                       {port === "out" ? "" : port}
                     </span>
                   </button>
