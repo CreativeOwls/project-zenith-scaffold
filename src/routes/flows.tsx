@@ -171,7 +171,7 @@ function FlowsPage() {
         } catch {
           /* keep polling */
         }
-      }, 1200);
+      }, 500);
 
       const result = await start({ data: { runId, graph, input: runInput } });
 

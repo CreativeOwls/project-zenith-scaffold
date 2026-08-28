@@ -196,3 +196,41 @@
   letter-spacing: -0.055em;
   line-height: 0.85;
 }
+
+/* Live flow run: pulsing node + travelling connection */
+@keyframes flow-node-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--accent-yellow) 55%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 8px color-mix(in oklab, var(--accent-yellow) 0%, transparent);
+  }
+}
+
+@keyframes flow-link-dash {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+
+.flow-node-running {
+  animation: flow-node-pulse 1.2s ease-in-out infinite;
+}
+
+.flow-link-live {
+  stroke-dasharray: 8 6;
+  animation: flow-link-dash 0.7s linear infinite;
+}
+
+.flow-link-glow {
+  animation: flow-node-pulse 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flow-node-running,
+  .flow-link-live,
+  .flow-link-glow {
+    animation: none;
+  }
+}
