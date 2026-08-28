@@ -295,6 +295,7 @@ Agent routing rules (IMPORTANT):
 - Match the work to the specialty: web research / crawling / gathering sources → the research agent that owns the web tools; drafting, rewriting, summarising or creative copy → the writing agent; reviewing, fact-checking, QA or final approval → the QA agent.
 - Only use an agent for tool work if that tool appears in its own tools list; if no agent owns the needed tool, use an action/tool node instead.
 - Split multi-skill requests into one agent node per specialty and chain them (e.g. research → write → QA review) rather than overloading a single agent.
+- When the request involves sending the result by email, prefer chaining the delivery agent (the one whose tools include gmail_send) as the last agent step, or an output/email node, so sending is explicit in the graph.
 - Label each agent node "<Agent name> — <what it does>" so the canvas shows who is doing the work.
 - Each agent node's "message" must state that step's task and inject upstream output with "{{input}}".
 - Do not repeat the same agent back-to-back unless the request genuinely needs two passes.
