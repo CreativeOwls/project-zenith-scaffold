@@ -2,10 +2,20 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState } from "react";
 
+import orchestratorAvatar from "@/assets/agent-orchestrator.jpg";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { sendChat, type ChatTurn } from "@/lib/chat.functions";
+import { TOOL_CATALOG } from "@/lib/connector-catalog";
+
+const CONNECTOR_ACCENTS = [
+  "border-blue-500/40 bg-blue-500/10 text-blue-400",
+  "border-red-500/40 bg-red-500/10 text-red-400",
+  "border-yellow-500/40 bg-yellow-500/10 text-yellow-400",
+  "border-green-500/40 bg-green-500/10 text-green-400",
+  "border-orange-500/40 bg-orange-500/10 text-orange-400",
+];
 
 const TITLE = "AI Hub — orchestrator chat | PROJECT 5";
 const DESCRIPTION =
@@ -69,10 +79,29 @@ function HubPage() {
   return (
     <AppShell>
       <div className="flex h-[calc(100vh-9rem)] flex-col">
-        <h1 className="text-2xl font-semibold tracking-tight">AI Hub Orchestrator Hub</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          One orchestrator, your agents, your connectors. It delegates when a specialist fits.
-        </p>
+        <div className="flex flex-col items-center text-center">
+          <img
+            src={orchestratorAvatar}
+            alt="AI orchestrator avatar"
+            width={1024}
+            height={1024}
+            className="h-20 w-20 rounded-full border border-border object-cover shadow-lg shadow-blue-500/10"
+          />
+          <h1 className="mt-3 text-2xl font-semibold tracking-tight">AI Hub Orchestrator Hub</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            One orchestrator, your agents, your connectors. It delegates when a specialist fits.
+          </p>
+          <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+            {TOOL_CATALOG.map((tool, index) => (
+              <span
+                key={tool.id}
+                className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ${CONNECTOR_ACCENTS[index % CONNECTOR_ACCENTS.length]}`}
+              >
+                {tool.label}
+              </span>
+            ))}
+          </div>
+        </div>
 
         <div className="mt-6 flex-1 space-y-4 overflow-y-auto rounded-xl border border-border bg-card/40 p-4">
           {messages.length === 0 && (
