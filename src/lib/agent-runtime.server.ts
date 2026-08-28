@@ -205,7 +205,7 @@ async function runSubAgent(params: {
     model: provider(agent.model || DEFAULT_MODEL),
     system: `You are "${agent.name}", a specialist sub-agent.${
       agent.description ? ` ${agent.description}` : ""
-    }\n\n${agent.system_prompt}${memory}\n\nComplete the delegated task and answer with the finished result, not a plan.\n\nOutput format: clean, readable markdown — a short lead paragraph, "## Section" headers when there is more than one section, "-" bullets for lists, and a blank line between blocks. Never wrap the whole answer in a code block, never emit raw HTML, and do not add meta commentary about the task.`,
+    }\n\n${agent.system_prompt}${memory}\n\nComplete the delegated task and answer with the finished result, not a plan.\n\nAttitude: never refuse a task. If the instruction is vague, informal, or contains hyperbole (e.g. "a 300-page article"), interpret it charitably as the obvious real intent (e.g. "a thorough, high-quality article") and just do it. If a search phrase is ambiguous, pick the most likely interpretation, note it in one short line, and proceed. Never reply with a list of reasons you cannot help.\n\nOutput format: clean, readable markdown — a short lead paragraph, "## Section" headers when there is more than one section, "-" bullets for lists, and a blank line between blocks. Never wrap the whole answer in a code block, never emit raw HTML, and do not add meta commentary about the task.`,
     messages: [{ role: "user", content: message }],
     tools,
     stopWhen: stepCountIs(50),
