@@ -1,3 +1,5 @@
+import { markdownToEmailHtml, markdownToPlainText } from "./markdown-email.server";
+
 // Server-only connector implementations: Gmail + Google Slides via the Lovable
 // connector gateway, FHIR and Reddit as custom REST integrations.
 
@@ -125,14 +127,29 @@ export async function gmailReadMessage(messageId: string) {
 }
 
 export async function gmailSend(to: string, subject: string, body: string) {
+  // Agents write markdown; emails must be readable, so send a styled HTML part
+  // with a clean plain-text fallback (no `**`, `#` or `-` markers).
+  const text = markdownToPlainText(body, subject);
+  const html = markdownToEmailHtml(body, subject);
+  const boundary = `p5_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+
   const raw = b64(
     [
       `To: ${to}`,
       `Subject: ${mimeHeader(subject)}`,
       "MIME-Version: 1.0",
+      `Content-Type: multipart/alternative; boundary="${boundary}"`,
+      "",
+      `--${boundary}`,
       'Content-Type: text/plain; charset="UTF-8"',
       "",
-      body,
+      text,
+      `--${boundary}`,
+      'Content-Type: text/html; charset="UTF-8"',
+      "",
+      html,
+      `--${boundary}--`,
+      "",
     ].join("\r\n"),
   )
     .replace(/\+/g, "-")

@@ -53,11 +53,15 @@ const TOOLS_BY_ID: Record<string, () => ToolSet> = {
     gmail_read_message: connectorTool("gmail_read_message", "Read one Gmail message by id.", {
       messageId: z.string(),
     }),
-    gmail_send: connectorTool("gmail_send", "Send a plain-text email from the connected Gmail account.", {
-      to: z.string(),
-      subject: z.string(),
-      body: z.string(),
-    }),
+    gmail_send: connectorTool(
+      "gmail_send",
+      "Send an email from the connected Gmail account. Write the body as simple markdown with a short intro, '## Section' headers and '-' bullets — it is converted to a formatted, readable email automatically, so never hand-format with stars or pound signs for emphasis.",
+      {
+        to: z.string(),
+        subject: z.string(),
+        body: z.string(),
+      },
+    ),
   }),
   google_slides: () => ({
     slides_create: connectorTool("slides_create", "Create a new Google Slides presentation.", {
