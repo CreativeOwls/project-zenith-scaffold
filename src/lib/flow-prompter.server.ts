@@ -116,7 +116,7 @@ function normalizeGraph(raw: unknown): { graph: FlowGraph; name: string; descrip
   }));
 
   return {
-    graph: { nodes, connections },
+    graph: autoLayout({ nodes, connections }),
     name: String(parsed.name ?? "Generated flow"),
     description: String(parsed.description ?? ""),
   };
