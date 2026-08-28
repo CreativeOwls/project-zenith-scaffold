@@ -27,7 +27,7 @@ function inputPosition(node: FlowNode) {
 
 const STATUS_RING: Record<NodeStatus, string> = {
   idle: "ring-0",
-  running: "ring-2 ring-accent-yellow",
+  running: "ring-2 ring-accent-yellow flow-node-running",
   success: "ring-2 ring-accent-green",
   error: "ring-2 ring-accent-red",
 };
