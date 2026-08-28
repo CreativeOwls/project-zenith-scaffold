@@ -14,7 +14,154 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      agent_memories: {
+        Row: {
+          agent_id: string | null
+          content: string
+          created_at: string
+          id: string
+          memory_type: string
+          user_id: string
+        }
+        Insert: {
+          agent_id?: string | null
+          content: string
+          created_at?: string
+          id?: string
+          memory_type?: string
+          user_id: string
+        }
+        Update: {
+          agent_id?: string | null
+          content?: string
+          created_at?: string
+          id?: string
+          memory_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_memories_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agents: {
+        Row: {
+          created_at: string
+          delegation_enabled: boolean
+          description: string | null
+          id: string
+          max_delegation_depth: number
+          model: string
+          name: string
+          system_prompt: string
+          tools: string[]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          delegation_enabled?: boolean
+          description?: string | null
+          id?: string
+          max_delegation_depth?: number
+          model?: string
+          name: string
+          system_prompt?: string
+          tools?: string[]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          delegation_enabled?: boolean
+          description?: string | null
+          id?: string
+          max_delegation_depth?: number
+          model?: string
+          name?: string
+          system_prompt?: string
+          tools?: string[]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      node_flow_runs: {
+        Row: {
+          completed_at: string | null
+          flow_id: string | null
+          id: string
+          node_statuses: Json
+          result: Json | null
+          started_at: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          flow_id?: string | null
+          id?: string
+          node_statuses?: Json
+          result?: Json | null
+          started_at?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          flow_id?: string | null
+          id?: string
+          node_statuses?: Json
+          result?: Json | null
+          started_at?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "node_flow_runs_flow_id_fkey"
+            columns: ["flow_id"]
+            isOneToOne: false
+            referencedRelation: "node_flows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      node_flows: {
+        Row: {
+          connections: Json
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          nodes: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          connections?: Json
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          nodes?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          connections?: Json
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          nodes?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

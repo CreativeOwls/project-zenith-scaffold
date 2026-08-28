@@ -1,0 +1,333 @@
+import { generateText, stepCountIs, tool, type ModelMessage, type ToolSet } from "ai";
+import { z } from "zod";
+
+import { DEFAULT_MODEL, createLovableAiGatewayProvider, getLovableApiKey } from "./ai-gateway.server";
+import { runConnectorAction } from "./connectors.server";
+
+export type AgentRow = {
+  id: string;
+  name: string;
+  description: string | null;
+  system_prompt: string;
+  model: string;
+  tools: string[];
+  delegation_enabled: boolean;
+  max_delegation_depth: number;
+};
+
+type SupabaseLike = {
+  from: (table: string) => any;
+};
+
+export type ChatMessage = { role: "user" | "assistant"; content: string };
+
+export type DelegationTrace = {
+  agentId: string;
+  agentName: string;
+  depth: number;
+  request: string;
+  reply: string;
+};
+
+function connectorTool(action: string, description: string, shape: z.ZodRawShape) {
+  return tool({
+    description,
+    inputSchema: z.object(shape),
+    execute: async (input) => {
+      try {
+        return await runConnectorAction(action, input as Record<string, unknown>);
+      } catch (error) {
+        return { error: error instanceof Error ? error.message : String(error) };
+      }
+    },
+  });
+}
+
+const TOOLS_BY_ID: Record<string, () => ToolSet> = {
+  gmail: () => ({
+    gmail_search: connectorTool("gmail_search", "Search the connected Gmail inbox.", {
+      query: z.string().describe("Gmail search query, e.g. 'is:unread from:boss@acme.com'"),
+      limit: z.number().nullable(),
+    }),
+    gmail_read_message: connectorTool("gmail_read_message", "Read one Gmail message by id.", {
+      messageId: z.string(),
+    }),
+    gmail_send: connectorTool("gmail_send", "Send a plain-text email from the connected Gmail account.", {
+      to: z.string(),
+      subject: z.string(),
+      body: z.string(),
+    }),
+  }),
+  google_slides: () => ({
+    slides_create: connectorTool("slides_create", "Create a new Google Slides presentation.", {
+      title: z.string(),
+    }),
+    slides_read: connectorTool("slides_read", "Read the slides and text of a presentation.", {
+      presentationId: z.string(),
+    }),
+    slides_add_slide: connectorTool("slides_add_slide", "Append a title+body slide to a presentation.", {
+      presentationId: z.string(),
+      title: z.string(),
+      body: z.string(),
+    }),
+  }),
+  fhir: () => ({
+    fhir_search_patient: connectorTool("fhir_search_patient", "Search FHIR patients by name or identifier.", {
+      name: z.string().nullable(),
+      identifier: z.string().nullable(),
+      limit: z.number().nullable(),
+    }),
+    fhir_get_patient: connectorTool("fhir_get_patient", "Get one FHIR patient summary.", {
+      patientId: z.string(),
+    }),
+    fhir_get_appointments: connectorTool("fhir_get_appointments", "List a patient's appointments.", {
+      patientId: z.string(),
+      limit: z.number().nullable(),
+    }),
+    fhir_get_medications: connectorTool("fhir_get_medications", "List a patient's medication requests.", {
+      patientId: z.string(),
+      limit: z.number().nullable(),
+    }),
+    fhir_get_observations: connectorTool("fhir_get_observations", "List a patient's observations.", {
+      patientId: z.string(),
+      code: z.string().nullable(),
+      limit: z.number().nullable(),
+    }),
+  }),
+  reddit: () => ({
+    reddit_search_subreddit: connectorTool("reddit_search_subreddit", "Search Reddit, optionally inside one subreddit.", {
+      query: z.string(),
+      subreddit: z.string().nullable(),
+      limit: z.number().nullable(),
+    }),
+    reddit_get_top_posts: connectorTool("reddit_get_top_posts", "Get top posts of a subreddit.", {
+      subreddit: z.string(),
+      timeframe: z.string().nullable().describe("hour, day, week, month, year or all"),
+      limit: z.number().nullable(),
+    }),
+    reddit_get_post_comments: connectorTool("reddit_get_post_comments", "Get comments of a Reddit post id.", {
+      postId: z.string(),
+      limit: z.number().nullable(),
+    }),
+  }),
+};
+
+export function toolsForIds(ids: string[]): ToolSet {
+  let set: ToolSet = {};
+  for (const id of ids) {
+    const factory = TOOLS_BY_ID[id];
+    if (factory) set = { ...set, ...factory() };
+  }
+  return set;
+}
+
+async function recentMemories(supabase: SupabaseLike, agentId: string | null) {
+  const query = supabase
+    .from("agent_memories")
+    .select("memory_type, content, created_at")
+    .order("created_at", { ascending: false })
+    .limit(8);
+  const { data } = await (agentId ? query.eq("agent_id", agentId) : query.is("agent_id", null));
+  const rows = (data ?? []) as { memory_type: string; content: string }[];
+  if (rows.length === 0) return "";
+  return `\n\nRemembered context from previous conversations:\n${rows
+    .map((r) => `- (${r.memory_type}) ${r.content}`)
+    .join("\n")}`;
+}
+
+async function writeMemory(
+  supabase: SupabaseLike,
+  userId: string,
+  agentId: string | null,
+  memoryType: "fact" | "preference" | "summary",
+  content: string,
+) {
+  if (!content.trim()) return;
+  await supabase.from("agent_memories").insert({
+    agent_id: agentId,
+    user_id: userId,
+    memory_type: memoryType,
+    content: content.slice(0, 1500),
+  });
+}
+
+/** Run a single saved agent in its own tool-calling loop. Can delegate further. */
+async function runSubAgent(params: {
+  supabase: SupabaseLike;
+  userId: string;
+  agents: AgentRow[];
+  agent: AgentRow;
+  message: string;
+  depth: number;
+  maxDepth: number;
+  trace: DelegationTrace[];
+}): Promise<string> {
+  const { supabase, userId, agents, agent, message, depth, maxDepth, trace } = params;
+  const provider = createLovableAiGatewayProvider(getLovableApiKey());
+
+  let tools = toolsForIds(agent.tools ?? []);
+  const canDelegate = agent.delegation_enabled && depth < maxDepth;
+  if (canDelegate) {
+    tools = {
+      ...tools,
+      ...delegationTool({ supabase, userId, agents, depth: depth + 1, maxDepth, trace, excludeId: agent.id }),
+    };
+  }
+
+  const memory = await recentMemories(supabase, agent.id);
+  const result = await generateText({
+    model: provider(agent.model || DEFAULT_MODEL),
+    system: `You are "${agent.name}", a specialist sub-agent.${
+      agent.description ? ` ${agent.description}` : ""
+    }\n\n${agent.system_prompt}${memory}\n\nComplete the delegated task and answer concisely with the result.`,
+    messages: [{ role: "user", content: message }],
+    tools,
+    stopWhen: stepCountIs(50),
+  });
+
+  const reply = result.text?.trim() || "(no output)";
+  trace.push({ agentId: agent.id, agentName: agent.name, depth, request: message, reply });
+
+  await writeMemory(
+    supabase,
+    userId,
+    agent.id,
+    "summary",
+    `Task: ${message.slice(0, 300)}\nResult: ${reply.slice(0, 600)}`,
+  );
+
+  return reply;
+}
+
+function delegationTool(params: {
+  supabase: SupabaseLike;
+  userId: string;
+  agents: AgentRow[];
+  depth: number;
+  maxDepth: number;
+  trace: DelegationTrace[];
+  excludeId?: string;
+}): ToolSet {
+  const { supabase, userId, agents, depth, maxDepth, trace, excludeId } = params;
+  const candidates = agents.filter((a) => a.id !== excludeId);
+  const roster = candidates
+    .map((a) => `- ${a.id} — ${a.name}: ${a.description ?? "no description"} (tools: ${(a.tools ?? []).join(", ") || "none"})`)
+    .join("\n");
+
+  return {
+    delegate_to_agent: tool({
+      description:
+        `Delegate a task to one of the user's specialist agents. Available agents:\n${roster || "(none)"}\n` +
+        `Pass the agent's id and a self-contained instruction.`,
+      inputSchema: z.object({
+        agent_id: z.string(),
+        message: z.string(),
+      }),
+      execute: async ({ agent_id, message }) => {
+        const agent = candidates.find((a) => a.id === agent_id);
+        if (!agent) return { error: `No agent with id ${agent_id}` };
+        if (depth > maxDepth) return { error: "Maximum delegation depth reached." };
+        try {
+          const reply = await runSubAgent({
+            supabase,
+            userId,
+            agents,
+            agent,
+            message,
+            depth,
+            maxDepth: Math.max(maxDepth, agent.max_delegation_depth ?? 1),
+            trace,
+          });
+          return { agent: agent.name, reply };
+        } catch (error) {
+          return { error: error instanceof Error ? error.message : String(error) };
+        }
+      },
+    }),
+  };
+}
+
+const ORCHESTRATOR_PROMPT = `You are the AI Hub orchestrator. You coordinate the user's specialist agents and connector tools.
+Rules:
+- Prefer delegating specialist work with delegate_to_agent when a suitable agent exists.
+- You may also call connector tools directly when that is faster.
+- Always tell the user which agent did what.
+- Be concise and concrete.`;
+
+export async function runOrchestrator(params: {
+  supabase: SupabaseLike;
+  userId: string;
+  messages: ChatMessage[];
+  agentId?: string | null;
+}): Promise<{ reply: string; trace: DelegationTrace[] }> {
+  const { supabase, userId, messages } = params;
+
+  const { data: agentData } = await supabase
+    .from("agents")
+    .select("id, name, description, system_prompt, model, tools, delegation_enabled, max_delegation_depth")
+    .order("created_at", { ascending: true });
+  const agents = (agentData ?? []) as AgentRow[];
+
+  const trace: DelegationTrace[] = [];
+
+  // Direct single-agent run (used by flow "agent" nodes).
+  if (params.agentId) {
+    const agent = agents.find((a) => a.id === params.agentId);
+    if (!agent) throw new Error("Agent not found");
+    const last = messages[messages.length - 1];
+    const reply = await runSubAgent({
+      supabase,
+      userId,
+      agents,
+      agent,
+      message: last?.content ?? "",
+      depth: 1,
+      maxDepth: agent.delegation_enabled ? Math.max(1, agent.max_delegation_depth ?? 1) + 1 : 1,
+      trace,
+    });
+    return { reply, trace };
+  }
+
+  const maxDepth = Math.max(1, ...agents.map((a) => a.max_delegation_depth ?? 1));
+  const provider = createLovableAiGatewayProvider(getLovableApiKey());
+  const allToolIds = Array.from(new Set(agents.flatMap((a) => a.tools ?? [])));
+
+  const memory = await recentMemories(supabase, null);
+  const modelMessages: ModelMessage[] = messages.map((m) => ({ role: m.role, content: m.content }));
+
+  const result = await generateText({
+    model: provider(DEFAULT_MODEL),
+    system: `${ORCHESTRATOR_PROMPT}\n\nSaved agents:\n${
+      agents.map((a) => `- ${a.name} (${a.id}): ${a.description ?? ""}`).join("\n") || "(none yet)"
+    }${memory}`,
+    messages: modelMessages,
+    tools: {
+      ...toolsForIds(allToolIds),
+      ...(agents.length > 0
+        ? delegationTool({ supabase, userId, agents, depth: 1, maxDepth, trace })
+        : {}),
+    },
+    stopWhen: stepCountIs(50),
+  });
+
+  const reply = result.text?.trim() || "(no output)";
+
+  if (trace.length > 0) {
+    await writeMemory(
+      supabase,
+      userId,
+      null,
+      "summary",
+      `Orchestrated: ${trace.map((t) => `${t.agentName} -> ${t.reply.slice(0, 200)}`).join(" | ")}`,
+    );
+  }
+
+  return { reply, trace };
+}
+
+/** Plain single AI prompt, no tools (used by flow "prompt" nodes). */
+export async function runPlainPrompt(prompt: string, model = DEFAULT_MODEL): Promise<string> {
+  const provider = createLovableAiGatewayProvider(getLovableApiKey());
+  const result = await generateText({ model: provider(model), prompt });
+  return result.text?.trim() ?? "";
+}
