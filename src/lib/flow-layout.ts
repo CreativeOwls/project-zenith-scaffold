@@ -63,26 +63,27 @@ export function autoLayout(graph: FlowGraph): FlowGraph {
   }
 
   const positions = new Map<string, { x: number; y: number }>();
-  for (const [row, ids] of [...rows.entries()].sort((a, b) => a[0] - b[0])) {
-    const offset = ((ids.length - 1) * COL_WIDTH) / 2;
+  for (const [column, ids] of [...rows.entries()].sort((a, b) => a[0] - b[0])) {
+    const offset = ((ids.length - 1) * ROW_HEIGHT) / 2;
     ids.forEach((id, index) => {
       positions.set(id, {
-        x: Math.round(ORIGIN_X + index * COL_WIDTH - offset),
-        y: ORIGIN_Y + row * ROW_HEIGHT,
+        x: ORIGIN_X + column * COL_WIDTH,
+        y: Math.round(ORIGIN_Y + index * ROW_HEIGHT - offset),
       });
     });
   }
 
-  // Keep everything on-canvas (centering can push the widest row negative).
-  let minX = Infinity;
-  for (const point of positions.values()) minX = Math.min(minX, point.x);
-  const shift = Number.isFinite(minX) ? ORIGIN_X - minX : 0;
+  // Keep everything on-canvas (centering can push the tallest column negative).
+  let minY = Infinity;
+  for (const point of positions.values()) minY = Math.min(minY, point.y);
+  const shift = Number.isFinite(minY) ? ORIGIN_Y - minY : 0;
 
   return {
     nodes: nodes.map((node) => {
       const point = positions.get(node.id);
-      return point ? { ...node, x: point.x + shift, y: point.y } : node;
+      return point ? { ...node, x: point.x, y: point.y + shift } : node;
     }),
     connections: edges,
   };
 }
+
