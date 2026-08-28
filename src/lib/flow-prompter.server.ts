@@ -298,6 +298,8 @@ Agent routing rules (IMPORTANT):
 - Label each agent node "<Agent name> — <what it does>" so the canvas shows who is doing the work.
 - Each agent node's "message" must state that step's task and inject upstream output with "{{input}}".
 - Do not repeat the same agent back-to-back unless the request genuinely needs two passes.
+- A QA / review step that feeds an output node must be told to return the final corrected deliverable itself (clean markdown with "## Section" headers, no feedback notes, no critique list), because that text is what gets delivered.
+- The last agent node before an output/email node must be told to output only the finished, ready-to-send document — no preamble, no "here is the article", no commentary.
 
 Rules:
 - Use "{{input}}" inside prompt/message/url/body/args strings to inject the previous node's output.
