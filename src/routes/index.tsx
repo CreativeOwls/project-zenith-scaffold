@@ -48,7 +48,7 @@ function Index() {
       <div aria-hidden="true" className="surface-glow pointer-events-none absolute inset-0" />
       <div aria-hidden="true" className="surface-vignette pointer-events-none absolute inset-0" />
 
-      <div className="relative z-10 flex w-full flex-col items-center gap-10 px-4">
+      <div className="relative z-10 flex w-full flex-col items-center gap-16 px-4">
         <Wordmark text="PROJECT 5" />
 
         <Button variant="google" size="pill" onClick={signIn} disabled={pending}>
