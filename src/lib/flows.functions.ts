@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { demoContext } from "./demo-context";
 import type { FlowGraph } from "./flow-types";
 
 export type SaveFlowInput = {
@@ -12,7 +12,7 @@ export type SaveFlowInput = {
 };
 
 export const listFlows = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([demoContext])
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
       .from("node_flows")
@@ -23,7 +23,7 @@ export const listFlows = createServerFn({ method: "GET" })
   });
 
 export const saveFlow = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([demoContext])
   .inputValidator((input: SaveFlowInput) => {
     if (!input?.name?.trim()) throw new Error("Flow name is required");
     return input;
@@ -58,7 +58,7 @@ export const saveFlow = createServerFn({ method: "POST" })
   });
 
 export const deleteFlow = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([demoContext])
   .inputValidator((input: { id: string }) => input)
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase.from("node_flows").delete().eq("id", data.id);
@@ -67,7 +67,7 @@ export const deleteFlow = createServerFn({ method: "POST" })
   });
 
 export const createFlowRun = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([demoContext])
   .inputValidator((input: { flowId?: string | null; graph: FlowGraph }) => {
     if (!input?.graph?.nodes?.length) throw new Error("The flow has no nodes to run");
     return input;
@@ -88,7 +88,7 @@ export const createFlowRun = createServerFn({ method: "POST" })
   });
 
 export const startFlowRun = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([demoContext])
   .inputValidator((input: { runId: string; graph: FlowGraph; input?: string }) => {
     if (!input?.runId) throw new Error("Missing run id");
     if (!input?.graph?.nodes?.length) throw new Error("The flow has no nodes to run");
@@ -115,7 +115,7 @@ export const startFlowRun = createServerFn({ method: "POST" })
 
 
 export const getFlowRun = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([demoContext])
   .inputValidator((input: { runId: string }) => input)
   .handler(async ({ data, context }) => {
     const { data: run, error } = await context.supabase
@@ -128,7 +128,7 @@ export const getFlowRun = createServerFn({ method: "POST" })
   });
 
 export const generateFlow = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([demoContext])
   .inputValidator((input: { request: string }) => {
     if (!input?.request?.trim()) throw new Error("Describe the automation you want");
     return input;

@@ -1,11 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { demoContext } from "./demo-context";
 
 export type ChatTurn = { role: "user" | "assistant"; content: string };
 
 export const sendChat = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([demoContext])
   .inputValidator((input: { messages: ChatTurn[]; agentId?: string | null }) => {
     if (!Array.isArray(input?.messages) || input.messages.length === 0) {
       throw new Error("At least one message is required");

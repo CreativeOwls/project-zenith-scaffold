@@ -29,7 +29,7 @@ export type Database = {
           created_at?: string
           id?: string
           memory_type?: string
-          user_id: string
+          user_id?: string
         }
         Update: {
           agent_id?: string | null
@@ -72,7 +72,7 @@ export type Database = {
           name: string
           system_prompt?: string
           tools?: string[]
-          user_id: string
+          user_id?: string
         }
         Update: {
           created_at?: string
@@ -107,7 +107,7 @@ export type Database = {
           result?: Json | null
           started_at?: string
           status?: string
-          user_id: string
+          user_id?: string
         }
         Update: {
           completed_at?: string | null
@@ -148,7 +148,7 @@ export type Database = {
           name: string
           nodes?: Json
           updated_at?: string
-          user_id: string
+          user_id?: string
         }
         Update: {
           connections?: Json
