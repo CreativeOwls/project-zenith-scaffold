@@ -12,6 +12,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { AVAILABLE_MODELS_CLIENT } from "@/lib/models";
 import { TOOL_CATALOG, type ToolId } from "@/lib/connector-catalog";
 import { deleteAgent, listAgents, saveAgent, type AgentInput } from "@/lib/agents.functions";
+import boltAvatar from "@/assets/agent-bolt.jpg";
+import leslieAvatar from "@/assets/agent-leslie.jpg";
+import rexAvatar from "@/assets/agent-rex.jpg";
+
+const AGENT_AVATARS: Record<string, string> = {
+  bolt: boltAvatar,
+  leslie: leslieAvatar,
+  rex: rexAvatar,
+};
+
+const avatarFor = (name: string) => AGENT_AVATARS[name.trim().toLowerCase()];
 
 const TITLE = "Agent Hub — build specialist agents | PROJECT 5";
 const DESCRIPTION =
