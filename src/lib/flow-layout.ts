@@ -73,8 +73,16 @@ export function autoLayout(graph: FlowGraph): FlowGraph {
     });
   }
 
+  // Keep everything on-canvas (centering can push the widest row negative).
+  let minX = Infinity;
+  for (const point of positions.values()) minX = Math.min(minX, point.x);
+  const shift = Number.isFinite(minX) ? ORIGIN_X - minX : 0;
+
   return {
-    nodes: nodes.map((node) => ({ ...node, ...(positions.get(node.id) ?? { x: node.x, y: node.y }) })),
+    nodes: nodes.map((node) => {
+      const point = positions.get(node.id);
+      return point ? { ...node, x: point.x + shift, y: point.y } : node;
+    }),
     connections: edges,
   };
 }
