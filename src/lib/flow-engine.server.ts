@@ -45,6 +45,15 @@ export class FlowExecutor {
     return this.graph.nodes.find((n) => n.id === id);
   }
 
+  /** True when this node's output goes straight into a delivery/output node. */
+  private feedsDelivery(nodeId: string): boolean {
+    return this.graph.connections
+      .filter((c) => c.from === nodeId)
+      .some((c) => this.node(c.to)?.kind === "output");
+  }
+
+
+
   private async persist(status?: string, result?: unknown) {
     const patch: Record<string, unknown> = { node_statuses: this.statuses };
     if (status) patch["status"] = status;
@@ -197,7 +206,11 @@ export class FlowExecutor {
   private async runAction(node: FlowNode, input: string): Promise<string> {
     if (node.subtype === "agent") {
       const agentId = cfgString(node, "agentId");
-      const message = applyTemplate(cfgString(node, "message", "{{input}}"), input);
+      let message = applyTemplate(cfgString(node, "message", "{{input}}"), input);
+      if (this.feedsDelivery(node.id)) {
+        message +=
+          '\n\nDELIVERY STEP — your reply is delivered verbatim to the end recipient. Output ONLY the finished deliverable itself: the complete, corrected, ready-to-publish document in clean markdown (short lead paragraph, "## Section" headers, "-" bullets). Do NOT output review notes, critique, scores, checklists, feedback, approval statements, or any commentary about the task. If the incoming draft needs fixes, silently apply them and return the full corrected document.';
+      }
       const { reply } = await runOrchestrator({
         supabase: this.supabase,
         userId: this.userId,
@@ -206,6 +219,7 @@ export class FlowExecutor {
       });
       return reply;
     }
+
 
     if (node.subtype === "prompt") {
       const prompt = applyTemplate(cfgString(node, "prompt", "{{input}}"), input);
