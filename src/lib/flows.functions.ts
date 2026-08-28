@@ -136,13 +136,20 @@ export const generateFlow = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { data: agents } = await context.supabase
       .from("agents")
-      .select("id, name, description, tools");
+      .select("id, name, description, tools, model, system_prompt");
 
     const { buildFlowFromPrompt } = await import("./flow-prompter.server");
     try {
       return await buildFlowFromPrompt({
         request: data.request,
-        agents: (agents ?? []) as { id: string; name: string; description: string | null; tools: string[] }[],
+        agents: (agents ?? []) as {
+          id: string;
+          name: string;
+          description: string | null;
+          tools: string[];
+          model: string;
+          system_prompt: string | null;
+        }[],
       });
     } catch (error) {
       return {
