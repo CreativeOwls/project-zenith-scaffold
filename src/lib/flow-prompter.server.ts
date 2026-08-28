@@ -181,14 +181,25 @@ Required config per node:
 Available tool actions for action/tool nodes:
 ${TOOL_CATALOG.map((t) => `- ${t.label}: ${t.actions.join(", ")}`).join("\n")}
 
-The user's saved agents (use their ids for action/agent nodes):
-${params.agents.map((a) => `- ${a.id} — ${a.name}: ${a.description ?? ""} (tools: ${a.tools.join(", ") || "none"})`).join("\n") || "(none)"}
+The user's saved agents — each has a specialty, its own model and its own tools:
+${agentRoster(params.agents)}
+
+Agent routing rules (IMPORTANT):
+- For any step that needs skill or judgement, prefer an action/agent node over action/prompt, and pick the agent whose specialty, persona and tools best match that step.
+- "agentId" MUST be one of the exact ids listed above — never invent an id, a name, or a slug.
+- Match the work to the specialty: web research / crawling / gathering sources → the research agent that owns the web tools; drafting, rewriting, summarising or creative copy → the writing agent; reviewing, fact-checking, QA or final approval → the QA agent.
+- Only use an agent for tool work if that tool appears in its own tools list; if no agent owns the needed tool, use an action/tool node instead.
+- Split multi-skill requests into one agent node per specialty and chain them (e.g. research → write → QA review) rather than overloading a single agent.
+- Label each agent node "<Agent name> — <what it does>" so the canvas shows who is doing the work.
+- Each agent node's "message" must state that step's task and inject upstream output with "{{input}}".
+- Do not repeat the same agent back-to-back unless the request genuinely needs two passes.
 
 Rules:
 - Use "{{input}}" inside prompt/message/url/body/args strings to inject the previous node's output.
 - Ports: normal nodes emit "out"; logic nodes emit "true" and "false" (both MUST be connected); loop nodes emit "body" and "done" (body MUST be connected).
 - Every node must be connected; exactly one entry node with no incoming connection is preferred.
-- Lay nodes out top-to-bottom: x between 80 and 900, y increasing by ~170 per step.
+- Lay nodes out left-to-right: x increasing by ~260 per step, y between 80 and 700.
+
 
 Return ONLY JSON:
 {"name":"...","description":"...","nodes":[{"id":"n1","kind":"input","subtype":"text","label":"...","x":120,"y":80,"config":{}}],"connections":[{"id":"c1","from":"n1","fromPort":"out","to":"n2","toPort":"in"}]}
