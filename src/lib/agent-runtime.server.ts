@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { DEFAULT_MODEL, createLovableAiGatewayProvider, getLovableApiKey } from "./ai-gateway.server";
 import { runConnectorAction } from "./connectors.server";
+import { workspaceTools } from "./workspace-tools.server";
 
 export type AgentRow = {
   id: string;
