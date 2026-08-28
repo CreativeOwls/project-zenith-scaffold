@@ -1,16 +1,12 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
 
 import { ConstellationBackdrop } from "@/components/ConstellationBackdrop";
-import { GoogleIcon } from "@/components/GoogleIcon";
 import { Wordmark } from "@/components/Wordmark";
 import { Button } from "@/components/ui/button";
-import { lovable } from "@/integrations/lovable/index";
-import { useAuth } from "@/hooks/useAuth";
 
 const TITLE = "PROJECT 5 — DevFest Hackathon Scaffold";
 const DESCRIPTION =
-  "PROJECT 5 is a DevFest hackathon scaffold: an animated constellation landing page with Google sign-in, ready to build on.";
+  "PROJECT 5 is a DevFest hackathon scaffold: an animated constellation landing page that opens straight into the AI hub.";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -27,23 +23,6 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  const [pending, setPending] = useState(false);
-  const { session } = useAuth();
-
-  const signIn = async () => {
-    setPending(true);
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
-    });
-
-    if (result.error) {
-      setPending(false);
-      return;
-    }
-    if (result.redirected) return;
-    setPending(false);
-  };
-
   return (
     <main className="relative flex min-h-screen w-full flex-col items-center justify-center overflow-hidden bg-background">
       <ConstellationBackdrop />
@@ -53,18 +32,11 @@ function Index() {
       <div className="relative z-10 flex w-full flex-col items-center gap-16 px-4">
         <Wordmark text="PROJECT 5" />
 
-        {session ? (
-          <Link to="/hub">
-            <Button variant="google" size="pill">
-              Enter AI Hub
-            </Button>
-          </Link>
-        ) : (
-          <Button variant="google" size="pill" onClick={signIn} disabled={pending}>
-            <GoogleIcon className="size-5" />
-            Sign in with Google
+        <Link to="/hub">
+          <Button variant="google" size="pill">
+            Enter
           </Button>
-        )}
+        </Link>
       </div>
     </main>
   );
