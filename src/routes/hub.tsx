@@ -69,7 +69,7 @@ function HubPage() {
   return (
     <AppShell>
       <div className="flex h-[calc(100vh-9rem)] flex-col">
-        <h1 className="text-2xl font-semibold tracking-tight">AI Hub</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">AI Hub Orchestrator Hub</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           One orchestrator, your agents, your connectors. It delegates when a specialist fits.
         </p>
