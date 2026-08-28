@@ -45,6 +45,24 @@ export class FlowExecutor {
     return this.graph.nodes.find((n) => n.id === id);
   }
 
+  /** True when this node's output is (directly, or via other agent steps) delivered to an email output. */
+  private feedsDelivery(nodeId: string, seen = new Set<string>()): boolean {
+    if (seen.has(nodeId)) return false;
+    seen.add(nodeId);
+    return this.graph.connections
+      .filter((c) => c.from === nodeId)
+      .some((c) => {
+        const next = this.node(c.to);
+        if (!next) return false;
+        if (next.kind === "output") return next.subtype === "email" || next.subtype === "text";
+        if (next.kind === "action" && (next.subtype === "agent" || next.subtype === "prompt")) {
+          return this.feedsDelivery(next.id, seen);
+        }
+        return false;
+      });
+  }
+
+
   private async persist(status?: string, result?: unknown) {
     const patch: Record<string, unknown> = { node_statuses: this.statuses };
     if (status) patch["status"] = status;
