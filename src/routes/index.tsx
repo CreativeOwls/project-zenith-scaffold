@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 
 import { ConstellationBackdrop } from "@/components/ConstellationBackdrop";
@@ -6,6 +6,7 @@ import { GoogleIcon } from "@/components/GoogleIcon";
 import { Wordmark } from "@/components/Wordmark";
 import { Button } from "@/components/ui/button";
 import { lovable } from "@/integrations/lovable/index";
+import { useAuth } from "@/hooks/useAuth";
 
 const TITLE = "PROJECT 5 — DevFest Hackathon Scaffold";
 const DESCRIPTION =
@@ -27,6 +28,7 @@ export const Route = createFileRoute("/")({
 
 function Index() {
   const [pending, setPending] = useState(false);
+  const { session } = useAuth();
 
   const signIn = async () => {
     setPending(true);
@@ -51,10 +53,18 @@ function Index() {
       <div className="relative z-10 flex w-full flex-col items-center gap-16 px-4">
         <Wordmark text="PROJECT 5" />
 
-        <Button variant="google" size="pill" onClick={signIn} disabled={pending}>
-          <GoogleIcon className="size-5" />
-          Sign in with Google
-        </Button>
+        {session ? (
+          <Link to="/hub">
+            <Button variant="google" size="pill">
+              Enter AI Hub
+            </Button>
+          </Link>
+        ) : (
+          <Button variant="google" size="pill" onClick={signIn} disabled={pending}>
+            <GoogleIcon className="size-5" />
+            Sign in with Google
+          </Button>
+        )}
       </div>
     </main>
   );
