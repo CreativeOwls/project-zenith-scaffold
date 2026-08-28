@@ -2,10 +2,20 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState } from "react";
 
+import orchestratorAvatar from "@/assets/agent-orchestrator.jpg";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { sendChat, type ChatTurn } from "@/lib/chat.functions";
+import { TOOL_CATALOG } from "@/lib/connector-catalog";
+
+const CONNECTOR_ACCENTS = [
+  "border-blue-500/40 bg-blue-500/10 text-blue-400",
+  "border-red-500/40 bg-red-500/10 text-red-400",
+  "border-yellow-500/40 bg-yellow-500/10 text-yellow-400",
+  "border-green-500/40 bg-green-500/10 text-green-400",
+  "border-orange-500/40 bg-orange-500/10 text-orange-400",
+];
 
 const TITLE = "AI Hub — orchestrator chat | PROJECT 5";
 const DESCRIPTION =
