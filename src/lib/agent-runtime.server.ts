@@ -347,7 +347,13 @@ export async function runOrchestrator(params: {
 
   const maxDepth = Math.max(1, ...agents.map((a) => a.max_delegation_depth ?? 1));
   const provider = createLovableAiGatewayProvider(getLovableApiKey());
-  const allToolIds = Array.from(new Set(agents.flatMap((a) => a.tools ?? [])));
+  // The orchestrator always owns web research (Firecrawl) and Gmail (read + send)
+  // directly, on top of every tool its agents have.
+  const ORCHESTRATOR_OWN_TOOLS = ["firecrawl", "gmail"];
+  const allToolIds = Array.from(
+    new Set([...ORCHESTRATOR_OWN_TOOLS, ...agents.flatMap((a) => a.tools ?? [])]),
+  );
+
 
   const memory = await recentMemories(supabase, null);
   const modelMessages: ModelMessage[] = messages.map((m) => ({ role: m.role, content: m.content }));
