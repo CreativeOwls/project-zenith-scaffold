@@ -195,8 +195,8 @@ export function NodeCanvas({
                   </>
                 ) : null}
                 <circle
-                  cx={(start.x + end.x) / 2}
-                  cy={mid}
+                  cx={mid}
+                  cy={(start.y + end.y) / 2}
                   r={6}
                   fill="transparent"
                   className="cursor-pointer"
