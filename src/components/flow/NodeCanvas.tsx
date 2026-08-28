@@ -152,8 +152,8 @@ export function NodeCanvas({
             if (!from || !to) return null;
             const start = portPosition(from, connection.fromPort);
             const end = inputPosition(to);
-            const mid = (start.y + end.y) / 2;
-            const path = `M ${start.x} ${start.y} C ${start.x} ${mid}, ${end.x} ${mid}, ${end.x} ${end.y}`;
+            const mid = (start.x + end.x) / 2;
+            const path = `M ${start.x} ${start.y} C ${mid} ${start.y}, ${mid} ${end.y}, ${end.x} ${end.y}`;
 
             const fromStatus = statuses[from.id] ?? "idle";
             const toStatus = statuses[to.id] ?? "idle";
