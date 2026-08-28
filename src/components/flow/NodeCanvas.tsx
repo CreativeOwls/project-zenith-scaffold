@@ -17,12 +17,12 @@ export const NODE_HEIGHT = 92;
 function portPosition(node: FlowNode, port: string) {
   const ports = outputPorts(node);
   const index = Math.max(0, ports.indexOf(port));
-  const step = NODE_WIDTH / (ports.length + 1);
-  return { x: node.x + step * (index + 1), y: node.y + NODE_HEIGHT };
+  const step = NODE_HEIGHT / (ports.length + 1);
+  return { x: node.x + NODE_WIDTH, y: node.y + step * (index + 1) };
 }
 
 function inputPosition(node: FlowNode) {
-  return { x: node.x + NODE_WIDTH / 2, y: node.y };
+  return { x: node.x, y: node.y + NODE_HEIGHT / 2 };
 }
 
 const STATUS_RING: Record<NodeStatus, string> = {
