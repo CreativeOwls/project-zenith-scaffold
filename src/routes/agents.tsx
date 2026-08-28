@@ -12,6 +12,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { AVAILABLE_MODELS_CLIENT } from "@/lib/models";
 import { TOOL_CATALOG, type ToolId } from "@/lib/connector-catalog";
 import { deleteAgent, listAgents, saveAgent, type AgentInput } from "@/lib/agents.functions";
+import boltAvatar from "@/assets/agent-bolt.jpg";
+import leslieAvatar from "@/assets/agent-leslie.jpg";
+import rexAvatar from "@/assets/agent-rex.jpg";
+
+const AGENT_AVATARS: Record<string, string> = {
+  bolt: boltAvatar,
+  leslie: leslieAvatar,
+  rex: rexAvatar,
+};
+
+const avatarFor = (name: string) => AGENT_AVATARS[name.trim().toLowerCase()];
 
 const TITLE = "Agent Hub — build specialist agents | PROJECT 5";
 const DESCRIPTION =
@@ -99,60 +110,87 @@ function AgentsPage() {
         Specialist agents the orchestrator can delegate to.
       </p>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_1.1fr]">
+      <div className="mt-6 space-y-6">
         <section className="space-y-3">
           <h2 className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
             Your agents ({agents.length})
           </h2>
           {agents.length === 0 && (
-            <p className="text-sm text-muted-foreground">No agents yet — create one on the right.</p>
+            <p className="text-sm text-muted-foreground">No agents yet — create one below.</p>
           )}
-          {agents.map((agent) => (
-            <article key={agent.id} className="rounded-xl border border-border bg-card/50 p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h3 className="font-medium">{agent.name}</h3>
-                  <p className="text-xs text-muted-foreground">{agent.description}</p>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() =>
-                      setDraft({
-                        id: agent.id,
-                        name: agent.name,
-                        description: agent.description ?? "",
-                        system_prompt: agent.system_prompt,
-                        model: agent.model,
-                        tools: agent.tools ?? [],
-                        delegation_enabled: agent.delegation_enabled,
-                        max_delegation_depth: agent.max_delegation_depth,
-                      })
-                    }
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={async () => {
-                      await remove({ data: { id: agent.id } });
-                      toast.success("Agent deleted");
-                      await refresh();
-                    }}
-                  >
-                    Delete
-                  </Button>
-                </div>
-              </div>
-              <p className="mt-3 text-xs text-muted-foreground">
-                {agent.model} · tools: {(agent.tools ?? []).join(", ") || "none"} · delegation{" "}
-                {agent.delegation_enabled ? `on (depth ${agent.max_delegation_depth})` : "off"}
-              </p>
-            </article>
-          ))}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {agents.map((agent) => {
+              const avatar = avatarFor(agent.name);
+              return (
+                <article
+                  key={agent.id}
+                  className="flex flex-col rounded-xl border border-border bg-card/50 p-4"
+                >
+                  <div className="flex items-center gap-3">
+                    {avatar ? (
+                      <img
+                        src={avatar}
+                        alt={`${agent.name} profile photo`}
+                        loading="lazy"
+                        width={512}
+                        height={512}
+                        className="h-14 w-14 shrink-0 rounded-full border border-border object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-border bg-secondary text-sm font-semibold">
+                        {agent.name.slice(0, 2).toUpperCase()}
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <h3 className="truncate font-medium">{agent.name}</h3>
+                      <p className="line-clamp-2 text-xs text-muted-foreground">
+                        {agent.description}
+                      </p>
+                    </div>
+                  </div>
+
+                  <p className="mt-3 flex-1 text-xs text-muted-foreground">
+                    {agent.model} · tools: {(agent.tools ?? []).join(", ") || "none"} · delegation{" "}
+                    {agent.delegation_enabled ? `on (depth ${agent.max_delegation_depth})` : "off"}
+                  </p>
+
+                  <div className="mt-4 flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() =>
+                        setDraft({
+                          id: agent.id,
+                          name: agent.name,
+                          description: agent.description ?? "",
+                          system_prompt: agent.system_prompt,
+                          model: agent.model,
+                          tools: agent.tools ?? [],
+                          delegation_enabled: agent.delegation_enabled,
+                          max_delegation_depth: agent.max_delegation_depth,
+                        })
+                      }
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={async () => {
+                        await remove({ data: { id: agent.id } });
+                        toast.success("Agent deleted");
+                        await refresh();
+                      }}
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
         </section>
+
 
         <section className="space-y-4 rounded-xl border border-border bg-card/50 p-5">
           <h2 className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
