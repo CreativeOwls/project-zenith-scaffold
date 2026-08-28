@@ -90,6 +90,107 @@ function extractJson(text: string): unknown {
   return JSON.parse(candidate.slice(start, end + 1));
 }
 
+const KIND_ALIASES: Record<string, FlowNode["kind"]> = {
+  input: "input",
+  trigger: "input",
+  start: "input",
+  action: "action",
+  task: "action",
+  step: "action",
+  logic: "logic",
+  condition: "logic",
+  branch: "logic",
+  if: "logic",
+  loop: "loop",
+  iterate: "loop",
+  output: "output",
+  end: "output",
+  result: "output",
+};
+
+const SUBTYPE_ALIASES: Record<string, string> = {
+  // action
+  ai: "prompt",
+  llm: "prompt",
+  model: "prompt",
+  prompt: "prompt",
+  agent: "agent",
+  subagent: "agent",
+  tool: "tool",
+  connector: "tool",
+  function: "tool",
+  http: "http",
+  api: "http",
+  fetch: "http",
+  request: "http",
+  // input
+  text: "text",
+  manual: "text",
+  webhook: "webhook",
+  cron: "cron",
+  schedule: "cron",
+  // logic
+  keyword: "keyword",
+  regex: "regex",
+  // loop
+  for_each: "for_each",
+  foreach: "for_each",
+  each: "for_each",
+  map: "for_each",
+  while: "while",
+  // output
+  display: "display",
+  show: "display",
+  email: "email",
+  mail: "email",
+  gmail: "email",
+  save: "save",
+  store: "save",
+  notify: "notify",
+};
+
+/**
+ * Models regularly emit "action/tool", "Action", "ACTION_TOOL" or put the kind
+ * in the subtype. Coerce whatever they wrote into a valid kind + subtype pair
+ * instead of failing validation on a graph that is otherwise fine.
+ */
+function coerceKindSubtype(rawKind: unknown, rawSubtype: unknown) {
+  const tokens = `${String(rawKind ?? "")}/${String(rawSubtype ?? "")}`
+    .toLowerCase()
+    .split(/[^a-z_]+/)
+    .filter(Boolean);
+
+  let kind: FlowNode["kind"] | undefined;
+  let subtype: string | undefined;
+
+  for (const token of tokens) {
+    if (!kind && KIND_ALIASES[token]) {
+      kind = KIND_ALIASES[token];
+      continue;
+    }
+    if (!subtype && SUBTYPE_ALIASES[token]) subtype = SUBTYPE_ALIASES[token];
+  }
+
+  // "for_each" arrives as two tokens once split on non-letters is applied.
+  if (!subtype && tokens.includes("for")) subtype = "for_each";
+
+  kind ??= "action";
+  const allowed = (NODE_SUBTYPES[kind] ?? []).map((s) => s.value);
+  if (!subtype || !allowed.includes(subtype)) {
+    // Prefer a same-named subtype under another kind before falling back.
+    const owner = (Object.keys(NODE_SUBTYPES) as FlowNode["kind"][]).find((k) =>
+      subtype ? (NODE_SUBTYPES[k] ?? []).some((s) => s.value === subtype) : false,
+    );
+    if (subtype && owner && !KIND_ALIASES[String(rawKind ?? "").toLowerCase()]) {
+      kind = owner;
+    } else {
+      subtype = allowed[0] ?? "prompt";
+    }
+  }
+
+  return { kind, subtype: subtype! };
+}
+
 function normalizeGraph(raw: unknown): { graph: FlowGraph; name: string; description: string } {
   const parsed = raw as {
     name?: string;
@@ -98,15 +199,19 @@ function normalizeGraph(raw: unknown): { graph: FlowGraph; name: string; descrip
     connections?: Partial<FlowConnection>[];
   };
 
-  const nodes: FlowNode[] = (parsed.nodes ?? []).map((node, index) => ({
-    id: String(node.id ?? `n${index + 1}`),
-    kind: (node.kind ?? "action") as FlowNode["kind"],
-    subtype: String(node.subtype ?? "prompt"),
-    label: String(node.label ?? `Node ${index + 1}`),
-    x: Number.isFinite(Number(node.x)) ? Number(node.x) : 120 + index * 60,
-    y: Number.isFinite(Number(node.y)) ? Number(node.y) : 120 + index * 150,
-    config: (node.config ?? {}) as FlowNode["config"],
-  }));
+  const nodes: FlowNode[] = (parsed.nodes ?? []).map((node, index) => {
+    const { kind, subtype } = coerceKindSubtype(node.kind, node.subtype);
+    return {
+      id: String(node.id ?? `n${index + 1}`),
+      kind,
+      subtype,
+      label: String(node.label ?? `Node ${index + 1}`),
+      x: Number.isFinite(Number(node.x)) ? Number(node.x) : 120 + index * 60,
+      y: Number.isFinite(Number(node.y)) ? Number(node.y) : 120 + index * 150,
+      config: (node.config ?? {}) as FlowNode["config"],
+    };
+  });
+
 
   const connections: FlowConnection[] = (parsed.connections ?? []).map((connection, index) => ({
     id: String(connection.id ?? `c${index + 1}`),
@@ -156,7 +261,7 @@ export async function buildFlowFromPrompt(params: {
   const provider = createLovableAiGatewayProvider(getLovableApiKey());
 
   const spec = `
-Node kinds and subtypes:
+Node kinds and subtypes ("kind" and "subtype" are SEPARATE fields — subtype must be the bare value, e.g. {"kind":"action","subtype":"tool"}, never "action/tool"):
 ${Object.entries(NODE_SUBTYPES)
   .map(([kind, subtypes]) => `- ${kind}: ${subtypes.map((s) => s.value).join(", ")}`)
   .join("\n")}
@@ -212,10 +317,48 @@ Return ONLY JSON:
   });
 
   const normalized = normalizeGraph(extractJson(result.text ?? ""));
+  repairNodeConfigs(normalized.graph, params.agents);
   const validation = validateGraph(normalized.graph);
   reconcileAgentNodes(normalized.graph, params.agents, validation);
   return { ...normalized, validation };
 }
+
+/**
+ * Fill in config the model tends to omit so a structurally sound graph is not
+ * rejected for a blank field the canvas can already edit.
+ */
+function repairNodeConfigs(graph: FlowGraph, agents: PrompterAgent[]) {
+  const validActions = new Set(TOOL_CATALOG.flatMap((t) => t.actions));
+
+  for (const node of graph.nodes) {
+    const config = { ...((node.config ?? {}) as Record<string, unknown>) };
+    const blank = (key: string) => !config[key] || String(config[key]).trim() === "";
+
+    if (node.kind === "action") {
+      if (node.subtype === "tool" && (blank("action") || !validActions.has(String(config["action"])))) {
+        // No usable tool action: run the step as an agent when we have one,
+        // otherwise as a plain prompt.
+        if (agents.length > 0) {
+          node.subtype = "agent";
+          config["agentId"] = config["agentId"] ?? agents[0]!.id;
+          if (blank("message")) config["message"] = `${node.label}\n\n{{input}}`;
+        } else {
+          node.subtype = "prompt";
+          if (blank("prompt")) config["prompt"] = `${node.label}\n\n{{input}}`;
+        }
+      }
+      if (node.subtype === "prompt" && blank("prompt")) config["prompt"] = `${node.label}\n\n{{input}}`;
+      if (node.subtype === "agent" && blank("message")) config["message"] = `${node.label}\n\n{{input}}`;
+    }
+
+    if (node.kind === "logic" && node.subtype === "ai" && blank("question")) {
+      config["question"] = node.label;
+    }
+
+    node.config = config as FlowNode["config"];
+  }
+}
+
 
 /**
  * The model occasionally writes an agent name (or a stale id) into agentId.
