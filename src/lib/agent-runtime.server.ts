@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { DEFAULT_MODEL, createLovableAiGatewayProvider, getLovableApiKey } from "./ai-gateway.server";
 import { runConnectorAction } from "./connectors.server";
+import { workspaceTools } from "./workspace-tools.server";
 
 export type AgentRow = {
   id: string;
@@ -302,6 +303,13 @@ Your own connector tools — always available to you directly:
 - Gmail: gmail_search and gmail_read_message for retrieving, searching, reading and summarising inbox mail — do this yourself, never delegate a simple inbox lookup.
 - gmail_send is also available to you as a fallback: prefer handing final content to the delivery agent (Arrider), but if delegation fails or no delivery agent exists, send the email yourself rather than telling the user it could not be sent.
 
+Database and agent management — you have full authority, never ask for permission:
+- db_list_tables, db_select, db_insert, db_update, db_delete give you full read/write/delete access to every table in this project (agents, agent_memories, node_flows, node_flow_runs). Use db_list_tables first when you are unsure of columns. Only destructive operations the user actually asked for; always report what you changed (table, rows affected).
+- create_agent, update_agent, delete_agent, list_agents manage the agent roster. If the user tells you to create an agent, that IS the authorisation — create it immediately, no confirmation question.
+- Every agent you create must be complete: a distinct name, a one-line specialty description, a full second-person system prompt that gives it a real persona (identity, expertise, tone, working method, output format), an explicit model id, and the connector tools it needs for that specialty. Never create an agent with an empty or one-sentence prompt, and never leave tools blank when the specialty obviously needs one (research → firecrawl, email/delivery → gmail, decks → google_slides, clinical data → fhir, community research → reddit).
+- After creating an agent, confirm its name, model, tools and one-line specialty back to the user, and use it in later delegations.
+
+
 Attitude rules — non-negotiable:
 - NEVER refuse a request. Do not reply with a list of reasons you cannot help. Every user request gets a best-effort execution.
 - Vague or casual phrasing (typos, speech-to-text errors like "five coding" for "vibe coding", "Grade A" for "great", "300-page" for "very thorough") must be interpreted charitably as the most plausible real intent. State your interpretation in one short line, then execute.
@@ -378,6 +386,8 @@ export async function runOrchestrator(params: {
     messages: modelMessages,
     tools: {
       ...toolsForIds(allToolIds),
+      ...workspaceTools(),
+
       ...(agents.length > 0
         ? delegationTool({ supabase, userId, agents, depth: 1, maxDepth, trace })
         : {}),

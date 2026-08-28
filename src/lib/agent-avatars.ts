@@ -1,3 +1,4 @@
+import arriderAvatar from "@/assets/agent-arrider.jpg";
 import boltAvatar from "@/assets/agent-bolt.jpg";
 import leslieAvatar from "@/assets/agent-leslie.jpg";
 import rexAvatar from "@/assets/agent-rex.jpg";
@@ -6,6 +7,7 @@ export const AGENT_AVATARS: Record<string, string> = {
   bolt: boltAvatar,
   leslie: leslieAvatar,
   rex: rexAvatar,
+  arrider: arriderAvatar,
 };
 
 export const avatarFor = (name: string | null | undefined) =>
