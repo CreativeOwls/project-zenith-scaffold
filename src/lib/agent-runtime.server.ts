@@ -207,7 +207,14 @@ async function runSubAgent(params: {
   });
 
   const reply = result.text?.trim() || "(no output)";
-  trace.push({ agentId: agent.id, agentName: agent.name, depth, request: message, reply });
+  trace.push({
+    agentId: agent.id,
+    agentName: agent.name,
+    model: agent.model || DEFAULT_MODEL,
+    depth,
+    request: message,
+    reply,
+  });
 
   await writeMemory(
     supabase,
