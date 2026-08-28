@@ -43,6 +43,15 @@ type Block =
   | { type: "code"; text: string }
   | { type: "rule" };
 
+const norm = (text: string) => text.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+
+/** Avoid printing the subject twice when the body already opens with that title. */
+function dropDuplicateTitle(blocks: Block[], subject?: string): Block[] {
+  const first = blocks[0];
+  if (!subject?.trim() || !first || first.type !== "heading" || first.level > 2) return blocks;
+  return norm(first.text) === norm(subject) ? blocks.slice(1) : blocks;
+}
+
 function parseBlocks(markdown: string): Block[] {
   const lines = markdown.replace(/\r\n/g, "\n").replace(/\t/g, "  ").split("\n");
   const blocks: Block[] = [];
@@ -145,7 +154,7 @@ const HEADING_STYLES: Record<number, string> = {
 
 /** Markdown -> readable HTML email body with headings and sections. */
 export function markdownToEmailHtml(markdown: string, subject?: string): string {
-  const parts = parseBlocks(markdown).map((block) => {
+  const parts = dropDuplicateTitle(parseBlocks(markdown), subject).map((block) => {
     switch (block.type) {
       case "heading": {
         const level = Math.min(block.level, 3);
@@ -194,7 +203,7 @@ export function markdownToEmailHtml(markdown: string, subject?: string): string 
 
 /** Markdown -> clean plain text: no stars, pound signs or bullet markers. */
 export function markdownToPlainText(markdown: string, subject?: string): string {
-  const sections = parseBlocks(markdown).map((block) => {
+  const sections = dropDuplicateTitle(parseBlocks(markdown), subject).map((block) => {
     switch (block.type) {
       case "heading": {
         const text = inlineToText(block.text).toUpperCase();
